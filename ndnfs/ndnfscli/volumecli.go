@@ -23,16 +23,8 @@ var (
 		Usage: "create a new volume: `create [options] NAME`",
 		Flags: []cli.Flag{
 			cli.StringFlag{
-				Name:  "size",
-				Usage: "size of volume in bytes ",
-			},
-			cli.StringFlag{
-				Name:  "fstype",
-				Usage: "Specify a volume fs type (must be mkfs.type)",
-			},
-			cli.StringFlag{
-				Name:  "bucket",
-				Usage: "bucket path to create device in (cluster/tenant/bucket)",
+				Name:  "tenant",
+				Usage: "tenant path to create bucket in (cluster/tenant)",
 			},
 			cli.BoolFlag{
 				Name:  "verbose, v",

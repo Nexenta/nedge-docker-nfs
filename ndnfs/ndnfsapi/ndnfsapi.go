@@ -135,7 +135,7 @@ func (c *Client) CreateVolume(name, path string) (err error) {
 	}
 
 	mnt := filepath.Join(c.Config.MountPoint, name)
-	if out, err := exec.Command("mkdir", mnt).CombinedOutput(); err != nil {
+	if out, err := exec.Command("mkdir", "-p", mnt).CombinedOutput(); err != nil {
 		log.Info("Error running mkdir command: ", err, "{", string(out), "}")
 	}
 	return err
@@ -177,7 +177,7 @@ func (c *Client) DeleteVolume(name string) (err error) {
 func (c *Client) MountVolume(name string) (mnt string, err error) {
 	log.Debug(DN, "Mounting Volume ", name)
 
-	nfs := filepath.Join(c.Config.NedgeHost, ":/", name)
+	nfs := fmt.Sprintf("%s:/%s", c.Config.NedgeHost, name)
 	mnt = filepath.Join(c.Config.MountPoint, name)
 	args := []string{"-t", "nfs", nfs, mnt}
 	if out, err := exec.Command("mount", args...).CombinedOutput(); err != nil {
@@ -190,7 +190,7 @@ func (c *Client) MountVolume(name string) (mnt string, err error) {
 
 func (c *Client) UnmountVolume(name string) (err error) {
 	log.Debug(DN, "Unmounting Volume ", name)
-	nfs := filepath.Join(c.Config.NedgeHost, ":/", name)
+	nfs := fmt.Sprintf("%s:/%s", c.Config.NedgeHost, name)
 	if out, err := exec.Command("umount", nfs).CombinedOutput(); err != nil {
 		log.Error("Error running umount command: ", err, "{", string(out), "}")
 	}
