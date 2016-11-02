@@ -1,8 +1,8 @@
 NEDGE_DEST = $(DESTDIR)/opt/nedge/sbin
 NEDGE_ETC = $(DESTDIR)/opt/nedge/etc/ccow
-NDVOL_EXE = ndnfs
+NDNFS_EXE = ndnfs
 
-build: 
+build:
 	GOPATH=$(shell pwd) go get -v github.com/docker/go-plugins-helpers/...
 	cd src/github.com/docker/go-plugins-helpers/volume; git checkout 60d242c
 	GOPATH=$(shell pwd) go get -v github.com/Nexenta/nedge-docker-nfs/...

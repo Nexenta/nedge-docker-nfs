@@ -28,7 +28,7 @@ var (
 			},
 			cli.StringFlag{
 				Name:  "config, c",
-				Usage: "Config file for daemon (default: /etc/nvd/nvd.json): `[--config /opt/nedge/etc/ccow/nvd.json]`",
+				Usage: "Config file for daemon (default: /opt/nedge/etc/ccow/ndnfs.json): `[--config /opt/nedge/etc/ccow/ndnfs.json]`",
 			},
 		},
 		Action: cmdDaemonStart,
