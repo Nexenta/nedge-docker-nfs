@@ -3,7 +3,7 @@ NexentaEdge Plugin for Docker Volumes
 
 
 ## Description
-This plugin provides the ability to use NexentaEdge Clusters as backend
+This plugin provides the ability to use NexentaEdge 2.0 Clusters as backend
 devices in a Docker environment.
 
 ## Prerequisites
@@ -48,22 +48,13 @@ You can find instructions and steps on the Docker website here:
 [Get Docker](https://docs.docker.com/engine/)
 
 ## Driver Installation
-After the above Prerequisites are met, clone repository and use the Makefile:
+After the above Prerequisites are met, use the Makefile:
   ```
-  git clone https://github.com/nexenta/nedge-docker-nfs
-  cd nedge-docker-nfs
-  make
+  cd /opt/nedge/thirdparty/ndnfs
+  make install
   ```
-
-In addition to providing the source, this should also build and install the
-ndnfs binary in your Golang bin directory.
 
 ## Configuration
-Example config file can be found here:
-  ```
-  https://github.com/Nexenta/nedge-docker-nfs/blob/master/ndnfs/daemon/ndnfs.json
-  ```
-  
 Default path to config file is
   ```
   /opt/nedge/etc/ccow/ndnfs.json
@@ -74,7 +65,7 @@ After install and setting up a configuration, all you need to is start the
 nexenta-docker-driver daemon so tha it can accept requests from Docker.
 
   ```
-  sudo ndnfs daemon start -v
+  sudo /opt/nedge/sbin/ndnfs daemon start -v
   ```
 
 ## Usage Examples
