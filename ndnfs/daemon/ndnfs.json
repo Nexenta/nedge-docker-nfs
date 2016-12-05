@@ -4,6 +4,6 @@
     "clustername":  "cltest",
     "tenantname":   "test",
     "chunksize":    4096,
-    "mountpoint": "/var/lib/docker/volumes/ndnfs",
+    "mountpoint": "/var/lib/ndnfs",
     "servicename": "nfs"
 }
