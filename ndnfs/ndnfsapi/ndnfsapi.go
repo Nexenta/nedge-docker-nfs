@@ -270,6 +270,9 @@ func (c *Client) GetNfsList() (nfsList []string, err error) {
     if (jsonerr != nil) {
         log.Error(jsonerr)
     }
+    if r["response"]["data"]["X-Service-Objects"] == nil {
+        return
+    }
     strList := strings.Trim((r["response"]["data"]["X-Service-Objects"].(string)), "[]")
     nfsList = strings.Split(strList, ",")
     for i := range nfsList {

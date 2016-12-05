@@ -37,7 +37,7 @@ func (d NdnfsDriver) Capabilities(r volume.Request) volume.Response {
 }
 
 func (d NdnfsDriver) Create(r volume.Request) volume.Response {
-	log.Debugf(fmt.Sprintf("Create volume %s on %s\n", r.Name, "nedge"))
+	log.Debugf(fmt.Sprintf("Create volume %s on %s\n", r.Name, "nedge with options: ", r.Options))
 	d.Mutex.Lock()
 	defer d.Mutex.Unlock()
 	err := d.Client.CreateVolume(
