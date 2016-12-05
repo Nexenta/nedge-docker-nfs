@@ -41,7 +41,7 @@ func (d NdnfsDriver) Create(r volume.Request) volume.Response {
 	d.Mutex.Lock()
 	defer d.Mutex.Unlock()
 	err := d.Client.CreateVolume(
-		r.Name, r.Options["tenant"])
+		r.Name, r.Options)
 	if err != nil {
 		return volume.Response{Err: err.Error()}
 	}
@@ -52,7 +52,7 @@ func (d NdnfsDriver) Get(r volume.Request) volume.Response {
 	log.Debug(DN, "Get volume: ", r.Name, " Options: ", r.Options)
 	name, mnt, err := d.Client.GetVolume(r.Name)
 	if err != nil || name == "" {
-		log.Info("Failed to retrieve volume named ", r.Name, "during Get operation: ")
+		log.Info("Volume with name ", r.Name, " not found")
 		return volume.Response{}
 	}
 	log.Debug("Device mountpoint is: ", mnt)
@@ -90,7 +90,7 @@ func (d NdnfsDriver) Mount(r volume.MountRequest) volume.Response {
 
 func (d NdnfsDriver) Path(r volume.Request) volume.Response {
 	log.Info(DN, "Path volume: ", r.Name, " Options: ", r.Options)
-	mnt := fmt.Sprintf("%s%s", d.Client.Config.MountPoint, r.Name)
+	mnt := fmt.Sprintf("%s%s", d.Client.Config.Mountpoint, r.Name)
 	return volume.Response{Mountpoint: mnt}
 }
 

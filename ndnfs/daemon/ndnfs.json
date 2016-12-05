@@ -1,9 +1,9 @@
 {
-	"NedgeHost":	"localhost",
-	"NedgePort":	8080,
-	"ClusterName": 	"cltest",
-	"TenantName": 	"test",
-	"ChunkSize": 	4096,
-	"MountPoint": "/var/lib/docker/volumes/ndnfs",
-	"ServiceName": "nfs"
+    "nedgehost":    "localhost",
+    "nedgeport":    8080,
+    "clustername":  "cltest",
+    "tenantname":   "test",
+    "chunksize":    4096,
+    "mountpoint": "/var/lib/docker/volumes/ndnfs",
+    "servicename": "nfs"
 }

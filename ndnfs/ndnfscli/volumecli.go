@@ -86,7 +86,11 @@ func cmdCreateVolume(c *cli.Context) cli.ActionFunc {
 	}
 	fmt.Println("cmdCreate: ", name, c.String("size"));
 	client := getClient(c)
-	client.CreateVolume(name, c.String("tenant"))
+	options := make(map[string]string)
+	options["tenant"] = c.String("tenant")
+	options["service"] = c.String("service")
+	options["chunkSize"] = c.String("chunksize")
+	client.CreateVolume(name, options)
 	return nil
 }
 

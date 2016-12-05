@@ -17,6 +17,7 @@ lint:
 	done
 
 install:
+	cp -n ndnfs/daemon/ndnfs.json $(NEDGE_ETC)/ndnfs.json.example
 	cp -f bin/$(NDNFS_EXE) $(NEDGE_DEST)
 
 uninstall:
