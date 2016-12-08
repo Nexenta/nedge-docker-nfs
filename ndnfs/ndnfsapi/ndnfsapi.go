@@ -159,7 +159,8 @@ func (c *Client) CreateVolume(name string, options map[string]string) (err error
         log.Error(jsonerr)
     }
     if (resp["code"] != nil) && (resp["code"] != "RT_ERR_EXISTS") {
-        log.Panic("Error while handling request", resp)
+        err = errors.New(fmt.Sprintf("Error while handling request: %s", resp))
+        return err
     }
 
     data = make(map[string]interface{})
@@ -173,7 +174,8 @@ func (c *Client) CreateVolume(name string, options map[string]string) (err error
         log.Error(jsonerr)
     }
     if resp["code"] == "EINVAL" {
-        log.Panic("Error while handling request ", resp)
+        err = errors.New(fmt.Sprintf("Error while handling request: %s", resp))
+        return err
     }
 
     mnt := filepath.Join(c.Config.Mountpoint, name)
@@ -195,10 +197,15 @@ func (c *Client) DeleteVolume(name string) (err error) {
             path = nfsList[i]
         }
     }
-
+    var service string
+    if os.Getenv("CCOW_SVCNAME") != "" {
+        service = os.Getenv("CCOW_SVCNAME")
+    } else {
+        service = c.Config.Servicename
+    }
     data := make(map[string]interface{})
     data["serve"] = path
-    url := fmt.Sprintf("service/%s/serve", c.Config.Servicename)
+    url := fmt.Sprintf("service/%s/serve", service)
     _, err = c.Request("DELETE", url, data)
     if err != nil {
         log.Panic("Error while handling request", err)
@@ -264,7 +271,15 @@ func (c *Client) ListVolumes() (vmap map[string]string, err error) {
 }
 
 func (c *Client) GetNfsList() (nfsList []string, err error) {
-    body, err := c.Request("GET", fmt.Sprintf("service/%s", c.Config.Servicename), nil)
+    var body []byte
+    if os.Getenv("CCOW_SVCNAME") != "" {
+        body, err = c.Request(
+            "GET", fmt.Sprintf("service/%s", os.Getenv("CCOW_SVCNAME")), nil)
+    } else {
+        body, err = c.Request(
+            "GET", fmt.Sprintf("service/%s", c.Config.Servicename), nil)
+    }
+            
     r := make(map[string]map[string]map[string]interface{})
     jsonerr := json.Unmarshal(body, &r)
     if (jsonerr != nil) {
