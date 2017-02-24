@@ -2,10 +2,7 @@ package ndnfscli
 
 import (
 	"github.com/urfave/cli"
-	ndnfsDaemon "github.com/Nexenta/nedge-docker-nfs/ndnfs/daemon"
-	"github.com/sevlyar/go-daemon"
-	log "github.com/Sirupsen/logrus"
-	"syscall"
+	"github.com/qeas/nedge-docker-nfs/ndnfs/daemon"
 )
 
 var (
@@ -14,7 +11,6 @@ var (
 		Usage: "daemon related commands",
 		Subcommands: []cli.Command{
 			DaemonStartCmd,
-			DaemonStopCmd,
 		},
 	}
 
@@ -33,62 +29,13 @@ var (
 		},
 		Action: cmdDaemonStart,
 	}
-
-	DaemonStopCmd = cli.Command{
-		Name: "stop",
-		Usage: "Stop the Nedge Docker Daemon: `stop",
-		Action: cmdDaemonStop,
-	}
 )
 
-func cmdDaemonStop(c *cli.Context) {
-	cntxt := &daemon.Context{
-		PidFileName: "/opt/nedge/var/run/ndnfs.pid",
-		PidFilePerm: 0644,
-		LogFileName: "/opt/nedge/var/log/ndnfs.log",
-		LogFilePerm: 0640,
-		Umask:       027,
-	}
-	d, err := cntxt.Search()
-	if err != nil {
-		log.Fatalln("Unable to send signal to the daemon:", err)
-	}
-	d.Signal(syscall.SIGTERM)
-}
-
 func cmdDaemonStart(c *cli.Context) {
-	cntxt := &daemon.Context{
-		PidFileName: "/opt/nedge/var/run/ndnfs.pid",
-		PidFilePerm: 0644,
-		LogFileName: "/opt/nedge/var/log/ndnfs.log",
-		LogFilePerm: 0640,
-		Umask:       027,
-	}
-	d, err := cntxt.Reborn()
-	if err != nil {
-		log.Fatalln(err)
-	}
-	defer cntxt.Release()
-	if d != nil {
-		return
-	}
-
-	log.Info("- - - - - - - - - - - - - - -")
-	log.Info("Daemon started")
-	go DaemonStart(c)
-
-	err = daemon.ServeSignals()
-	if err != nil {
-		log.Info("Error:", err)
-	}
-	log.Info("Daemon terminated")
-}
-
-func DaemonStart(c *cli.Context) {
 	verbose := c.Bool("verbose")
 	cfg := c.String("config")
 	if cfg == "" {
 		cfg = "/opt/nedge/etc/ccow/ndnfs.json"
 	}
-	ndnfsDaemon.Start(cfg, verbose)
+	daemon.Start(cfg, verbose)
 }

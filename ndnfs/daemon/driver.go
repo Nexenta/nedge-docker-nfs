@@ -5,7 +5,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"sync"
 	"github.com/docker/go-plugins-helpers/volume"
-	"github.com/Nexenta/nedge-docker-nfs/ndnfs/ndnfsapi"
+	"github.com/qeas/nedge-docker-nfs/ndnfs/ndnfsapi"
 )
 
 var (

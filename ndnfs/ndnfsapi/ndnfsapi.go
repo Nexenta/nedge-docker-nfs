@@ -17,7 +17,7 @@ import (
 const defaultSize string = "1024";
 const defaultFSType string = "xfs";
 const defaultChunkSize int = 32768;
-const defaultMountPoint string = "/var/lib/ndvol"
+const defaultMountPoint string = "/var/lib/ndnfs"
 
 var (
     DN = "ndnfsapi "

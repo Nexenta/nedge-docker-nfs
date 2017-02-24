@@ -6,8 +6,10 @@ import (
 	"path/filepath"
 )
 
+const socketAddress = "/run/docker/plugins/ndnfs.sock"
+
 var (
-	defaultDir = filepath.Join(volume.DefaultDockerRootDirectory, "nedge")
+	defaultDir = filepath.Join(volume.DefaultDockerRootDirectory, "ndnfs")
 )
 
 func Start(cfgFile string, debug bool) {
@@ -16,9 +18,9 @@ func Start(cfgFile string, debug bool) {
 	} else {
 		log.SetLevel(log.InfoLevel)
 	}
-	log.Info("Default docker root nedge: ", defaultDir)
+	log.Info("Default docker root ndnfs: ", defaultDir)
 	d := DriverAlloc(cfgFile)
 	h := volume.NewHandler(d)
 	log.Info("Driver Created, Handler Initialized")
-	log.Info(h.ServeUnix("root", "ndnfs"))
+	log.Info(h.ServeUnix(socketAddress, 0))
 }
