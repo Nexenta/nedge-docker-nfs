@@ -3,6 +3,7 @@ package ndnfsapi
 import (
 	"fmt"
 	"encoding/json"
+	"encoding/base64"
 	log "github.com/Sirupsen/logrus"
 	"io/ioutil"
 	"errors"
