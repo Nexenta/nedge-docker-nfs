@@ -5,5 +5,7 @@
     "tenantname":   "test",
     "chunksize":    4096,
     "mountpoint": "/var/lib/ndnfs",
-    "servicename": "nfs"
+    "servicename": "nfs",
+    "username": "admin",
+    "password": "nexenta"
 }
