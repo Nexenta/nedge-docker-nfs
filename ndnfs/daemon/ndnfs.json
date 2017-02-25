@@ -7,5 +7,6 @@
     "mountpoint": "/var/lib/ndnfs",
     "servicename": "nfs",
     "username": "admin",
-    "password": "nexenta"
+    "password": "nexenta",
+    "nedgedata": "localhost"
 }
