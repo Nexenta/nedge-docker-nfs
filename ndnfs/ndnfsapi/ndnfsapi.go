@@ -239,7 +239,7 @@ func (c *Client) MountVolume(name string) (mnt string, err error) {
 	    log.Info("Error running mkdir command: ", err, "{", string(out), "}")
 	}
 	args := []string{"-t", "nfs", nfs, mnt}
-	if out, err = exec.Command("mount", args...).CombinedOutput(); err != nil {
+	if out, err := exec.Command("mount", args...).CombinedOutput(); err != nil {
 		log.Error("Error running mount command: ", err, "{", string(out), "}")
 		err = errors.New(fmt.Sprintf("%s: %s", err, out))
 		return mnt, err
