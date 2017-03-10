@@ -187,8 +187,6 @@ func (c *Client) CreateVolume(name string, options map[string]string) (err error
 		err = errors.New(fmt.Sprintf("Error while handling request: %s", resp))
 		return err
 	}
-
-	mnt := filepath.Join(c.Config.Mountpoint, name)
 	return err
 }
 
