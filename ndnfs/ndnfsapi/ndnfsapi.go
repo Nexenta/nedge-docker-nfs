@@ -189,9 +189,6 @@ func (c *Client) CreateVolume(name string, options map[string]string) (err error
 	}
 
 	mnt := filepath.Join(c.Config.Mountpoint, name)
-	if out, err := exec.Command("mkdir", "-p", mnt).CombinedOutput(); err != nil {
-		log.Info("Error running mkdir command: ", err, "{", string(out), "}")
-	}
 	return err
 }
 
@@ -238,8 +235,11 @@ func (c *Client) MountVolume(name string) (mnt string, err error) {
 
 	nfs := fmt.Sprintf("%s:/%s", c.Config.Nedgedata, name)
 	mnt = filepath.Join(c.Config.Mountpoint, name)
+	if out, err := exec.Command("mkdir", "-p", mnt).CombinedOutput(); err != nil {
+	    log.Info("Error running mkdir command: ", err, "{", string(out), "}")
+	}
 	args := []string{"-t", "nfs", nfs, mnt}
-	if out, err := exec.Command("mount", args...).CombinedOutput(); err != nil {
+	if out, err = exec.Command("mount", args...).CombinedOutput(); err != nil {
 		log.Error("Error running mount command: ", err, "{", string(out), "}")
 		err = errors.New(fmt.Sprintf("%s: %s", err, out))
 		return mnt, err
