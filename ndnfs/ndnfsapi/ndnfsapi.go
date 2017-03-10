@@ -229,13 +229,13 @@ func (c *Client) DeleteVolume(name string) (err error) {
 }
 
 func (c *Client) MountVolume(name string) (mnt string, err error) {
-	log.Debug(DN, "Mounting Volume ", name)
-
 	nfs := fmt.Sprintf("%s:/%s", c.Config.Nedgedata, name)
 	mnt = filepath.Join(c.Config.Mountpoint, name)
+	log.Debug(DN, "Creating mountpoint folder: ", mnt)
 	if out, err := exec.Command("mkdir", "-p", mnt).CombinedOutput(); err != nil {
 	    log.Info("Error running mkdir command: ", err, "{", string(out), "}")
 	}
+	log.Debug(DN, "Mounting Volume ", name)
 	args := []string{"-t", "nfs", nfs, mnt}
 	if out, err := exec.Command("mount", args...).CombinedOutput(); err != nil {
 		log.Error("Error running mount command: ", err, "{", string(out), "}")
