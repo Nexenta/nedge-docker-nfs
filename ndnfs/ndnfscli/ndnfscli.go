@@ -3,7 +3,7 @@ package ndnfscli
 import (
 	"fmt"
 	"github.com/urfave/cli"
-	"github.com/qeas/nedge-docker-nfs/ndnfs/daemon"
+	"github.com/nexenta/nedge-docker-nfs/ndnfs/driver"
 	"github.com/docker/go-plugins-helpers/volume"
 	log "github.com/Sirupsen/logrus"
 	"path/filepath"
@@ -82,7 +82,7 @@ func Start(cfgFile string, debug bool) {
 		log.SetLevel(log.InfoLevel)
 	}
 	log.Info("Default docker root ndnfs: ", defaultDir)
-	d := daemon.DriverAlloc(cfgFile)
+	d := driver.DriverAlloc(cfgFile)
 	h := volume.NewHandler(d)
 	log.Info("Driver Created, Handler Initialized")
 	log.Info(h.ServeUnix(socketAddress, 0))
