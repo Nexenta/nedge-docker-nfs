@@ -65,7 +65,7 @@ After install and setting up a configuration, all you need to is start the
 nexenta-docker-driver daemon so tha it can accept requests from Docker.
 
   ```
-  sudo /opt/nedge/sbin/ndnfs daemon start -v
+  sudo /opt/nedge/sbin/ndnfs start -v
   ```
 
 ## Usage Examples
