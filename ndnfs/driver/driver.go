@@ -46,7 +46,7 @@ type Config struct {
 	Servicename string
 }
 
-func ReadParseConfig(fname string) (Config, error) {
+func ReadParseConfig(fname string) (Config) {
 	content, err := ioutil.ReadFile(fname)
 	if err != nil {
 		log.Fatal(DN, "Error reading config file: ", fname, " error: ", err)
@@ -56,14 +56,11 @@ func ReadParseConfig(fname string) (Config, error) {
 	if err != nil {
 		log.Fatal(DN, "Error parsing config file: ", fname, " error: ", err)
 	}
-	return conf, nil
+	return conf
 }
 
 func DriverAlloc(cfgFile string) NdnfsDriver {
-	conf, err := ReadParseConfig(cfgFile)
-	if err != nil {
-		log.Fatal(DN, "Error initializing client from Config file: ", cfgFile, " error: ", err)
-	}
+	conf := ReadParseConfig(cfgFile)
 	if conf.Chunksize == 0 {
 		conf.Chunksize = defaultChunkSize
 	}
@@ -83,14 +80,13 @@ func DriverAlloc(cfgFile string) NdnfsDriver {
 
 func (d *NdnfsDriver) Request(method, endpoint string, data map[string]interface{}) (body []byte, err error) {
 	log.Debug("Issue request to Nexenta, endpoint: ", endpoint, " data: ", data, " method: ", method)
-	if d.Endpoint == "" {
+	if endpoint == "" {
 		err = errors.New("Unable to issue requests without specifying Endpoint")
-		log.Panic(err.Error())
-		return nil, err
+		log.Fatal(err.Error())
 	}
 	datajson, err := json.Marshal(data)
 	if (err != nil) {
-		log.Panic(err)
+		log.Fatal(err)
 	}
 
 	tr := &http.Transport{}
@@ -104,23 +100,22 @@ func (d *NdnfsDriver) Request(method, endpoint string, data map[string]interface
 	req.Header.Set("Authorization", "Basic " + basicAuth(d.Config.Username, d.Config.Password))
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Panic("Error while handling request ", err)
-		return nil, err
+		log.Fatal("Error while handling request ", err)
 	}
 	body, err = ioutil.ReadAll(resp.Body)
 	log.Debug("Got response, code: ", resp.StatusCode, ", body: ", string(body))
 	d.checkError(resp)
 	defer resp.Body.Close()
 	if (err != nil) {
-		log.Panic(err)
+		log.Fatal(err)
 	}
 	return body, err
 }
 
 func basicAuth(username, password string) string {
-		auth := username + ":" + password
-		return base64.StdEncoding.EncodeToString([]byte(auth))
-	}
+	auth := username + ":" + password
+	return base64.StdEncoding.EncodeToString([]byte(auth))
+}
 
 func (d *NdnfsDriver) checkError(resp *http.Response) (err error) {
 	if resp.StatusCode > 399 {
@@ -216,6 +211,7 @@ func (d NdnfsDriver) Get(r volume.Request) volume.Response {
 	for k, v := range nfsMap {
 		if k == r.Name {
 			mnt = v
+			break
 		}
 	}
 	if mnt == "" {
@@ -262,11 +258,9 @@ func (d NdnfsDriver) Mount(r volume.MountRequest) volume.Response {
 	if out, err := exec.Command("mount", args...).CombinedOutput(); err != nil {
 		log.Error("Error running mount command: ", err, "{", string(out), "}")
 		err = errors.New(fmt.Sprintf("%s: %s", err, out))
-	}
-
-	if err != nil {
-		log.Info("Failed to mount volume named ", r.Name, ": ", err)
-		return volume.Response{Err: err.Error()}
+		if err != nil {
+			return volume.Response{Err: err.Error()}
+		}
 	}
 	return volume.Response{Mountpoint: mnt}
 }
@@ -283,7 +277,7 @@ func (d NdnfsDriver) Remove(r volume.Request) volume.Response {
 	defer d.Mutex.Unlock()
 	nfsList, err := d.GetNfsList()
 	if err != nil {
-		log.Panic("Error getting nfs list", err)
+		log.Info("Error getting nfs list", err)
 	}
 	var path, service string
 	for i := range(nfsList) {
@@ -301,7 +295,7 @@ func (d NdnfsDriver) Remove(r volume.Request) volume.Response {
 	url := fmt.Sprintf("service/%s/serve", service)
 	_, err = d.Request("DELETE", url, data)
 	if err != nil {
-		log.Panic("Error while handling request", err)
+		log.Info("Error while handling request", err)
 	}
 
 	parts := strings.Split(path, "/")
@@ -312,7 +306,6 @@ func (d NdnfsDriver) Remove(r volume.Request) volume.Response {
 	if out, err := exec.Command("rm", "-rf", mnt).CombinedOutput(); err != nil {
 		log.Info("Error running rm command: ", err, "{", string(out), "}")
 	}
-
 
 	return volume.Response{}
 }
