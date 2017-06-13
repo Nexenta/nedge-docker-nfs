@@ -1,0 +1,35 @@
+{
+    "description": "NexentaEdge NFS plugin for Docker",
+    "documentation": "https://github.com/Nexenta/nexenta-docker-driver/",
+    "entrypoint": ["./ndnfs", "start", "-v"],
+    "interface": {
+        "socket": "ndnfs.sock",
+        "types": [
+            "docker.volumedriver/1.0"
+        ]
+    },
+    "linux": {
+        "capabilities": [
+            "CAP_SYS_ADMIN"
+        ]
+    },
+    "mounts": [
+        {
+            "destination": "/mnt/state",
+            "options": ["rbind"],
+            "source": "/var/lib/docker/plugins/",
+            "type": "bind"
+        },
+        {
+            "destination": "/opt/nedge/etc/ccow/",
+            "options": ["rbind", "rw"],
+            "source": "/opt/nedge/etc/ccow/",
+            "type": "rbind"
+        }
+
+    ],
+    "network": {
+        "type": "host"
+    },
+    "propagatedmount": "/var/lib/ndnfs"
+}
