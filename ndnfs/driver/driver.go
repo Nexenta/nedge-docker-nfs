@@ -145,8 +145,8 @@ func (d NdnfsDriver) Create(r volume.Request) volume.Response {
 		chunkSizeInt = d.Config.Chunksize
 	}
 
-	if chunkSizeInt < 4096 {
-		err = errors.New("chunksize must have a minimum value of 4096")
+	if chunkSizeInt < 4096 || chunkSizeInt > 1048576 || !(isPowerOfTwo(chunkSizeInt)) {
+		err = errors.New("Chunksize must be in range of 4096 - 1048576 and be a power of 2")
 		log.Error(err)
 		return volume.Response{Err: err.Error()}
 	}
@@ -203,7 +203,7 @@ func (d NdnfsDriver) Get(r volume.Request) volume.Response {
 	log.Debug(DN, "Get volume: ", r.Name, " Options: ", r.Options)
 	var mnt string
 	nfsMap, err := d.ListVolumes()
-	if err != nil || r.Name == "" {
+	if err != nil {
 		log.Info("Volume with name ", r.Name, " not found")
 		return volume.Response{}
 	}
@@ -258,9 +258,7 @@ func (d NdnfsDriver) Mount(r volume.MountRequest) volume.Response {
 	if out, err := exec.Command("mount", args...).CombinedOutput(); err != nil {
 		log.Error("Error running mount command: ", err, "{", string(out), "}")
 		err = errors.New(fmt.Sprintf("%s: %s", err, out))
-		if err != nil {
-			return volume.Response{Err: err.Error()}
-		}
+		return volume.Response{Err: err.Error()}
 	}
 	return volume.Response{Mountpoint: mnt}
 }
@@ -284,6 +282,9 @@ func (d NdnfsDriver) Remove(r volume.Request) volume.Response {
 		if strings.Contains(nfsList[i], r.Name) {
 			path = nfsList[i]
 		}
+	}
+	if path == "" {
+		return volume.Response{}
 	}
 	if os.Getenv("CCOW_SVCNAME") != "" {
 		service = os.Getenv("CCOW_SVCNAME")
@@ -357,4 +358,8 @@ func (d NdnfsDriver) ListVolumes() (vmap map[string]string, err error) {
 	}
 	log.Debug(vmap)
 	return vmap, err
+}
+
+func isPowerOfTwo(x int64) (res bool) {
+	return (x != 0) && ((x & (x - 1)) == 0)
 }
