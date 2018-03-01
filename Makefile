@@ -8,7 +8,7 @@ build:
 	GOPATH=$(shell pwd) go get -v github.com/docker/go-plugins-helpers/volume
 	cd src/github.com/docker/go-plugins-helpers/volume; git checkout d7fc7d0
 	cd src/github.com/docker/go-connections; git checkout acbe915
-	GOPATH=$(shell pwd) go get -v github.com/qeas/nedge-docker-nfs/...
+	GOPATH=$(shell pwd) go get -v github.com/Nexenta/nedge-docker-nfs/...
 
 lint:
 	GOPATH=$(shell pwd) GOROOT=$(GO_INSTALL) $(GO) get -v github.com/golang/lint/golint
@@ -28,4 +28,4 @@ uninstall:
 	rm -f $(NEDGE_DEST)/ndnfs
 
 clean:
-	go clean github.com/qeas/nedge-docker-nfs
+	go clean github.com/Nexenta/nedge-docker-nfs
