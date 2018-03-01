@@ -2,6 +2,15 @@
     "description": "NexentaEdge NFS plugin for Docker",
     "documentation": "https://github.com/Nexenta/nexenta-docker-driver/",
     "entrypoint": ["./ndnfs", "start", "-v"],
+    "env": [
+        {
+            "name": "DEBUG",
+            "settable": [
+                "value"
+            ],
+            "value": "0"
+        }
+    ],
     "interface": {
         "socket": "ndnfs.sock",
         "types": [
