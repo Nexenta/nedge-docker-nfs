@@ -6,6 +6,7 @@ build:
 	GOPATH=$(shell pwd) go get -v github.com/docker/go-plugins-helpers/volume
 	cd src/github.com/docker/go-plugins-helpers/volume; git checkout d7fc7d0
 	cd src/github.com/docker/go-connections; git checkout acbe915
+	GOPATH=$(shell pwd) go get -v github.com/opencontainers/runc
 	cd src/github.com/opencontainers/runc; git checkout aada2af
 	GOPATH=$(shell pwd) go get -v github.com/Nexenta/nedge-docker-nfs/...
 
