@@ -1,0 +1,11 @@
+{
+    "nedgerest":    "localhost",
+    "nedgeport":    8080,
+    "clustername":  "cltest",
+    "tenantname":   "test",
+    "chunksize":    4096,
+    "servicename": "nfs",
+    "username": "admin",
+    "password": "nexenta",
+    "nedgedata": "localhost"
+}

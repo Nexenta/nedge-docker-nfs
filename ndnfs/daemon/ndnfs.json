@@ -1,9 +1,0 @@
-{
-    "nedgehost":    "localhost",
-    "nedgeport":    8080,
-    "clustername":  "cltest",
-    "tenantname":   "test",
-    "chunksize":    4096,
-    "mountpoint": "/var/lib/ndnfs",
-    "servicename": "nfs"
-}
