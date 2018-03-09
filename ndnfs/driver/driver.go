@@ -79,7 +79,9 @@ func DriverAlloc(cfgFile string) NdnfsDriver {
 }
 
 func (d *NdnfsDriver) Request(method, endpoint string, data map[string]interface{}) (body []byte, err error) {
-	log.Debug("Issue request to Nexenta, endpoint: ", endpoint, " data: ", data, " method: ", method)
+	url := d.Endpoint + endpoint
+	log.Debug("Issuing request to NexentaEdge, endpoint: ",
+		fmt.Sprintf("%s/%s", url, endpoint), " data: ", data, " method: ", method)
 	if endpoint == "" {
 		err = errors.New("Unable to issue requests without specifying Endpoint")
 		log.Fatal(err.Error())
@@ -91,7 +93,6 @@ func (d *NdnfsDriver) Request(method, endpoint string, data map[string]interface
 
 	tr := &http.Transport{}
 	client := &http.Client{Transport: tr}
-	url := d.Endpoint + endpoint
 	req, err := http.NewRequest(method, url, nil)
 	if len(data) != 0 {
 		req, err = http.NewRequest(method, url, strings.NewReader(string(datajson)))
@@ -126,19 +127,18 @@ func (d *NdnfsDriver) checkError(resp *http.Response) (err error) {
 	return err
 }
 
-func (d NdnfsDriver) Capabilities(r volume.Request) volume.Response {
+func (d NdnfsDriver) Capabilities() *volume.CapabilitiesResponse {
 	log.Debug(DN, "Received Capabilities req")
-	return volume.Response{Capabilities: volume.Capability{Scope: d.Scope}}
+	return &volume.CapabilitiesResponse{Capabilities: volume.Capability{Scope: d.Scope}}
 }
 
-func (d NdnfsDriver) Create(r volume.Request) volume.Response {
+func (d NdnfsDriver) Create(r *volume.CreateRequest) (err error) {
 	log.Debugf(fmt.Sprintf("Create volume %s using %s with options: %s", r.Name, DN, r.Options))
 	d.Mutex.Lock()
 	defer d.Mutex.Unlock()
 
 	var cluster, tenant, service string
 	var chunkSizeInt int
-	var err error
 	if r.Options["chunksize"] != "" {
 		chunkSizeInt, _ = strconv.Atoi(r.Options["chunksize"])
 	} else {
@@ -147,8 +147,7 @@ func (d NdnfsDriver) Create(r volume.Request) volume.Response {
 
 	if chunkSizeInt < 4096 || chunkSizeInt > 1048576 || !(isPowerOfTwo(chunkSizeInt)) {
 		err = errors.New("Chunksize must be in range of 4096 - 1048576 and be a power of 2")
-		log.Error(err)
-		return volume.Response{Err: err.Error()}
+		return err
 	}
 	
 	data := make(map[string]interface{})
@@ -175,10 +174,11 @@ func (d NdnfsDriver) Create(r volume.Request) volume.Response {
 	jsonerr := json.Unmarshal(body, &resp)
 	if (jsonerr != nil) {
 		log.Error(jsonerr)
+		return err
 	}
 	if (resp["code"] != nil) && (resp["code"] != "RT_ERR_EXISTS") {
 		err = errors.New(fmt.Sprintf("Error while handling request: %s", resp))
-		return volume.Response{Err: err.Error()}
+		return err
 	}
 
 	data = make(map[string]interface{})
@@ -190,22 +190,22 @@ func (d NdnfsDriver) Create(r volume.Request) volume.Response {
 	jsonerr = json.Unmarshal(body, &resp)
 	if (jsonerr != nil) {
 		log.Error(jsonerr)
+		return err
 	}
 	if resp["code"] == "EINVAL" {
 		err = errors.New(fmt.Sprintf("Error while handling request: %s", resp))
-		return volume.Response{Err: err.Error()}
+		return err
 	}
-
-	return volume.Response{}
+	return err
 }
 
-func (d NdnfsDriver) Get(r volume.Request) volume.Response {
-	log.Debug(DN, "Get volume: ", r.Name, " Options: ", r.Options)
+func (d NdnfsDriver) Get(r *volume.GetRequest) (*volume.GetResponse, error) {
+	log.Debug(DN, "Get volume: ", r.Name)
 	var mnt string
 	nfsMap, err := d.ListVolumes()
 	if err != nil {
 		log.Info("Volume with name ", r.Name, " not found")
-		return volume.Response{}
+		return &volume.GetResponse{}, err
 	}
 
 	for k, v := range nfsMap {
@@ -215,38 +215,37 @@ func (d NdnfsDriver) Get(r volume.Request) volume.Response {
 		}
 	}
 	if mnt == "" {
-		return volume.Response{}
+		return &volume.GetResponse{}, err
 	}
 
 	log.Debug("Device mountpoint is: ", mnt)
-	return volume.Response{Volume: &volume.Volume{
-		Name: r.Name, Mountpoint: mnt}}
+	return &volume.GetResponse{Volume: &volume.Volume{Name: r.Name, Mountpoint: mnt}}, err
 }
 
-func (d NdnfsDriver) List(r volume.Request) volume.Response {
+func (d NdnfsDriver) List() (*volume.ListResponse, error) {
 	log.Debug(DN, "List volume")
 	vmap, err := d.ListVolumes()
+	var vols []*volume.Volume
 	if err != nil {
-		log.Info("Failed to retrieve volume list", err)
-		return volume.Response{Err: err.Error()}
+		log.Panic("Failed to retrieve volume list", err)
 	}
 	log.Debug(DN, "Nedge response: ", vmap)
-	var vols []*volume.Volume
 	for name, mnt := range vmap {
 		if name != "" {
 			vols = append(vols, &volume.Volume{Name: name, Mountpoint: mnt})
 		}
 	}
-	return volume.Response{Volumes: vols}
+	return &volume.ListResponse{Volumes: vols}, err
 }
 
-func (d NdnfsDriver) Mount(r volume.MountRequest) volume.Response {
+func (d NdnfsDriver) Mount(r *volume.MountRequest) (*volume.MountResponse, error) {
 	log.Info(DN, "Mount volume: ", r.Name)
 	d.Mutex.Lock()
 	defer d.Mutex.Unlock()
 	var mnt string
+	var err error
 
-	nfs := fmt.Sprintf("%s:/%s", d.Config.Nedgedata, r.Name)
+	nfs := fmt.Sprintf("%s:/%s/%s", d.Config.Nedgedata, d.Config.Tenantname, r.Name)
 	mnt = filepath.Join(d.Config.Mountpoint, r.Name)
 	log.Debug(DN, "Creating mountpoint folder: ", mnt)
 	if out, err := exec.Command("mkdir", "-p", mnt).CombinedOutput(); err != nil {
@@ -255,26 +254,27 @@ func (d NdnfsDriver) Mount(r volume.MountRequest) volume.Response {
 	log.Debug(DN, "Mounting Volume ", r.Name)
 	args := []string{"-t", "nfs", nfs, mnt}
 	if out, err := exec.Command("mount", args...).CombinedOutput(); err != nil {
-		log.Error("Error running mount command: ", err, "{", string(out), "}")
 		err = errors.New(fmt.Sprintf("%s: %s", err, out))
-		return volume.Response{Err: err.Error()}
+		log.Panic("Error running mount command: ", err, "{", string(out), "}")
 	}
-	return volume.Response{Mountpoint: mnt}
+	return &volume.MountResponse{Mountpoint: mnt}, err
 }
 
-func (d NdnfsDriver) Path(r volume.Request) volume.Response {
-	log.Info(DN, "Path volume: ", r.Name, " Options: ", r.Options)
+func (d NdnfsDriver) Path(r *volume.PathRequest) (*volume.PathResponse, error) {
+	log.Info(DN, "Path volume: ", r.Name)
+	var err error
 	mnt := fmt.Sprintf("%s%s", d.Config.Mountpoint, r.Name)
-	return volume.Response{Mountpoint: mnt}
+	return &volume.PathResponse{Mountpoint: mnt}, err
 }
 
-func (d NdnfsDriver) Remove(r volume.Request) volume.Response {
-	log.Info(DN, "Remove volume: ", r.Name, " Options: ", r.Options)
+func (d NdnfsDriver) Remove(r *volume.RemoveRequest) error {
+	log.Info(DN, "Remove volume: ", r.Name)
 	d.Mutex.Lock()
 	defer d.Mutex.Unlock()
 	nfsList, err := d.GetNfsList()
 	if err != nil {
 		log.Info("Error getting nfs list", err)
+		return err
 	}
 	var path, service string
 	for i := range(nfsList) {
@@ -283,7 +283,7 @@ func (d NdnfsDriver) Remove(r volume.Request) volume.Response {
 		}
 	}
 	if path == "" {
-		return volume.Response{}
+		return err
 	}
 	if os.Getenv("CCOW_SVCNAME") != "" {
 		service = os.Getenv("CCOW_SVCNAME")
@@ -307,10 +307,10 @@ func (d NdnfsDriver) Remove(r volume.Request) volume.Response {
 		log.Info("Error running rm command: ", err, "{", string(out), "}")
 	}
 
-	return volume.Response{}
+	return err
 }
 
-func (d NdnfsDriver) Unmount(r volume.UnmountRequest) volume.Response {
+func (d NdnfsDriver) Unmount(r *volume.UnmountRequest) (err error) {
 	log.Info(DN, "Unmount volume: ", r.Name)
 	d.Mutex.Lock()
 	defer d.Mutex.Unlock()
@@ -318,7 +318,7 @@ func (d NdnfsDriver) Unmount(r volume.UnmountRequest) volume.Response {
 	if out, err := exec.Command("umount", nfs).CombinedOutput(); err != nil {
 		log.Error("Error running umount command: ", err, "{", string(out), "}")
 	}
-	return volume.Response{}
+	return err
 }
 
 func (d NdnfsDriver) GetNfsList() (nfsList []string, err error) {
@@ -339,10 +339,17 @@ func (d NdnfsDriver) GetNfsList() (nfsList []string, err error) {
 	if r["response"]["data"]["X-Service-Objects"] == nil {
 		return
 	}
-	strList := strings.Trim((r["response"]["data"]["X-Service-Objects"].(string)), "[]")
-	nfsList = strings.Split(strList, ",")
-	for i := range nfsList {
-		nfsList[i] = strings.Trim(nfsList[i], "\"")
+	strList := r["response"]["data"]["X-Service-Objects"].(string)
+	err = json.Unmarshal([]byte(strList), &nfsList)
+	if err != nil {
+	    log.Fatal(err)
+	}
+	for i, v := range(nfsList) {
+		if len(strings.Split(nfsList[i], ",")) > 1 {
+			nfsList[i] = strings.Split(strings.Split(v, ",")[1], "@")[0]
+		} else {
+			nfsList[i] = v
+		}
 	}
 	return nfsList, err
 }

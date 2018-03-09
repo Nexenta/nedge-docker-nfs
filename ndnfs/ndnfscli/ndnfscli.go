@@ -2,6 +2,7 @@ package ndnfscli
 
 import (
 	"fmt"
+	"os/exec"
 	"github.com/urfave/cli"
 	"github.com/nexenta/nedge-docker-nfs/ndnfs/driver"
 	"github.com/docker/go-plugins-helpers/volume"
@@ -11,7 +12,7 @@ import (
 
 const socketAddress = "/run/docker/plugins/ndnfs.sock"
 
-var	defaultDir = filepath.Join(volume.DefaultDockerRootDirectory, "ndnfs")
+var	defaultDir = filepath.Join("/var/lib/docker/volumes/", "ndnfs")
 
 func NdnfsCmdNotFound(c *cli.Context, command string) {
 	fmt.Println(command, " not found.");
@@ -81,6 +82,8 @@ func Start(cfgFile string, debug bool) {
 	} else {
 		log.SetLevel(log.InfoLevel)
 	}
+	out, err := exec.Command("mkdir", "-p", defaultDir).CombinedOutput()
+	log.Info("Out: ", out, "Err: ", err)
 	log.Info("Default docker root ndnfs: ", defaultDir)
 	d := driver.DriverAlloc(cfgFile)
 	h := volume.NewHandler(d)
