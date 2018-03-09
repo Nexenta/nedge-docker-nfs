@@ -226,7 +226,7 @@ func (c *Client) DeleteVolume(name string) (err error) {
 func (c *Client) MountVolume(name string) (mnt string, err error) {
     log.Debug(DN, "Mounting Volume ", name)
 
-    nfs := fmt.Sprintf("%s:/%s", c.Config.Nedgehost, name)
+    nfs := fmt.Sprintf("%s:/%s/%s", c.Config.Nedgehost, c.Config.Tenantname, name)
     mnt = filepath.Join(c.Config.Mountpoint, name)
     args := []string{"-t", "nfs", nfs, mnt}
     if out, err := exec.Command("mount", args...).CombinedOutput(); err != nil {
