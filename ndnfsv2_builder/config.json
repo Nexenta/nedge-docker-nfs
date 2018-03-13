@@ -21,9 +21,9 @@
             "type": "bind"
         },
         {
-            "destination": "/opt/nedge/etc/ccow/",
+            "destination": "/etc/ndnfs/",
             "options": ["rbind", "rw"],
-            "source": "/opt/nedge/etc/ccow/",
+            "source": "/etc/ndnfs/",
             "type": "rbind"
         }
 
