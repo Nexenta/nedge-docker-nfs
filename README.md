@@ -36,12 +36,12 @@ For a list of avaialable commands run:
 Here's an example of how to create a Nexenta volume using the Docker Volume
 API:
   ```
-  docker volume create -d ndnfs --name=testvolume -o size=1024
+  docker volume create -d nexenta/nexentaedge-nfs-plugin:stable --name=testvolume -o size=1024
   ```
 
 Now in order to use that volume with a Container you simply specify
   ```
-  docker run -v testvolume:/Data --volume-driver=ndnfs -i -t ubuntu
+  docker run -v testvolume:/Data --volume-driver=nexenta/nexentaedge-nfs-plugin:stable -i -t ubuntu
   /bin/bash
   ```
 
