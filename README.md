@@ -1,77 +1,33 @@
 NexentaEdge Plugin for Docker Volumes
 ======================================
-
-
 ## Description
-This plugin provides the ability to use NexentaEdge 2.0 Clusters as backend
-devices in a Docker environment over NFS protocol.
+  This plugin provides the ability to use NexentaEdge 2.0 Clusters as backend
+  devices in a Docker environment over NFS protocol.
 
-## Prerequisites
-### Golang
-To install the latest Golang, just follow the easy steps on the Go install
-websiste.  Again, I prefer to download the tarball and install myself rather
-than use a package manager like apt or yum:
-[Get Go](https://golang.org/doc/install)
-
-NOTE:
-It's very important that you follow the directions and setup your Go
-environment.  After downloading the appropriate package be sure to scroll down
-to the Linux, Mac OS X, and FreeBSD tarballs section and set up your Go
-environment as per the instructions.
-
-You will need to make sure you've added the $GOPATH/bin to your path,
-AND on Ubuntu you will also need to enable the use of the GO Bin path by sudo;
-either run visudo and edit, or provide an alias in your .bashrc file.
-
-You need to pre-create a folder for the GO code.
-For example in your .bashrc set the following alias after setting up PATH:
+## Configuration
+Create a /etc/ndnfs folder and put your ndnfs.json config file there.
+Example of a config file can be found in the ndnfs/driver folder.
   ```
-  export GOPATH=<your GO folder>
-  export PATH=$PATH:/usr/local/go/bin:$GOPATH/bin/
-  alias sudo='sudo env PATH=$PATH'
+  mkdir /etc/ndnfs
+  cp ndnfs/driver/ndnfs.json /etc/ndnfs
   ```
-Source .bashrc to update variables
-```
-  source .bashrc
-```
-
-
-### GCC
-```
-  apt-get install gcc
-```
-NOTE:
-Should be run as root and command may differ depending on your OS. 
-
-### Docker
-You can find instructions and steps on the Docker website here:
-[Get Docker](https://docs.docker.com/engine/)
 
 ## Driver Installation
 After the above Prerequisites are met, use the Makefile:
   ```
-  cd /opt/nedge/thirdparty/ndnfs
-  make install
-  ```
-
-## Configuration
-Default path to config file is
-  ```
-  /opt/nedge/etc/ccow/ndnfs.json
+  make
   ```
 
 ## Starting the daemon
-After install and setting up a configuration, all you need to is start the
-nexenta-docker-driver daemon so tha it can accept requests from Docker.
+If you changed any config options, you will need to restart the plugin
+for changes to take effect.
 
   ```
-  sudo /opt/nedge/sbin/ndnfs start -v
+  docker plugin disable nexenta/nexentaedge-nfs-plugin:stable
+  docker plugin enable nexenta/nexentaedge-nfs-plugin:stable
   ```
 
 ## Usage Examples
-Now that the daemon is running, you're ready to issue calls via the Docker
-Volume API and have the requests serviced by the NexentaEdge Driver.
-
 For a list of avaialable commands run:
   ```
   docker volume --help
@@ -80,12 +36,12 @@ For a list of avaialable commands run:
 Here's an example of how to create a Nexenta volume using the Docker Volume
 API:
   ```
-  docker volume create -d ndnfs --name=testvolume -o size=1024
+  docker volume create -d nexenta/nexentaedge-nfs-plugin:stable --name=testvolume -o size=1024
   ```
 
 Now in order to use that volume with a Container you simply specify
   ```
-  docker run -v testvolume:/Data --volume-driver=ndnfs -i -t ubuntu
+  docker run -v testvolume:/Data --volume-driver=nexenta/nexentaedge-nfs-plugin:stable -i -t ubuntu
   /bin/bash
   ```
 
