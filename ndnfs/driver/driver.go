@@ -251,6 +251,9 @@ func (d NdnfsDriver) Mount(r *volume.MountRequest) (*volume.MountResponse, error
 	if out, err := exec.Command("mkdir", "-p", mnt).CombinedOutput(); err != nil {
 	    log.Info("Error running mkdir command: ", err, "{", string(out), "}")
 	}
+	log.Debug(DN, "Checking if volume is mounted ", r.Name)
+	out, err := exec.Command("mount").CombinedOutput()
+	log.Debug(out)
 	log.Debug(DN, "Mounting Volume ", r.Name)
 	args := []string{"-t", "nfs", nfs, mnt}
 	if out, err := exec.Command("mount", args...).CombinedOutput(); err != nil {
