@@ -71,7 +71,7 @@ func cmdDaemonStart(c *cli.Context) {
 	verbose := c.Bool("verbose")
 	cfg := c.String("config")
 	if cfg == "" {
-		cfg = "/opt/nedge/etc/ccow/ndnfs.json"
+		cfg = "/etc/ndnfs/ndnfs.json"
 	}
 	Start(cfg, verbose)
 }
