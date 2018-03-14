@@ -253,7 +253,7 @@ func (d NdnfsDriver) Mount(r *volume.MountRequest) (*volume.MountResponse, error
 	}
 	log.Debug(DN, "Checking if volume is mounted ", r.Name)
 	out, err := exec.Command("mount").CombinedOutput()
-	log.Debug(out)
+	log.Debug(string(out))
 	log.Debug(DN, "Mounting Volume ", r.Name)
 	args := []string{"-t", "nfs", nfs, mnt}
 	if out, err := exec.Command("mount", args...).CombinedOutput(); err != nil {
