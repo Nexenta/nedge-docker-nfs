@@ -239,11 +239,15 @@ func (c *Client) MountVolume(name string) (mnt string, err error) {
     nfs := fmt.Sprintf("%s:/%s/%s", c.Config.Nedgedata, c.Config.Tenantname, name)
     mnt = filepath.Join(c.Config.Mountpoint, name)
     args := []string{"-t", "nfs", nfs, mnt}
-    log.Debug(DN, "Running mount cmd: mount ", args)
-    if out, err := exec.Command("mount", args...).CombinedOutput(); err != nil {
-        log.Error("Error running mount command: ", err, "{", string(out), "}")
-        err = errors.New(fmt.Sprintf("%s: %s", err, out))
-        return mnt, err
+    log.Debug(DN, "Checking if volume is mounted ", r.Name)
+    out, err := exec.Command("mount").CombinedOutput()
+    if strings.Contains(string(out), mnt) {
+        log.Debug(DN, "Running mount cmd: mount ", args)
+        if out, err := exec.Command("mount", args...).CombinedOutput(); err != nil {
+            log.Error("Error running mount command: ", err, "{", string(out), "}")
+            err = errors.New(fmt.Sprintf("%s: %s", err, out))
+            return mnt, err
+        }
     }
     return mnt, err
 }
