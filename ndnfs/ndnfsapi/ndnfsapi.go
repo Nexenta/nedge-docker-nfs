@@ -37,6 +37,8 @@ type Config struct {
     Clustername string
     Tenantname  string
     Chunksize   int
+    Username    string
+    Password    string
     Mountpoint  string
     Servicename string
 }
@@ -73,6 +75,11 @@ func ClientAlloc(configFile string) (c *Client, err error) {
     return NdnfsClient, nil
 }
 
+func basicAuth(username, password string) string {
+    auth := username + ":" + password
+    return base64.StdEncoding.EncodeToString([]byte(auth))
+}
+
 func (c *Client) Request(method, endpoint string, data map[string]interface{}) (body []byte, err error) {
     log.Debug("Issue request to Nexenta, endpoint: ", endpoint, " data: ", data, " method: ", method)
     if c.endpoint == "" {
@@ -93,6 +100,7 @@ func (c *Client) Request(method, endpoint string, data map[string]interface{}) (
         req, err = http.NewRequest(method, url, strings.NewReader(string(datajson)))
     }
     req.Header.Set("Content-Type", "application/json")
+    req.Header.Set("Authorization", "Basic " + basicAuth(d.Config.Username, d.Config.Password))
     resp, err := client.Do(req)
     if err != nil {
         log.Panic("Error while handling request ", err)
