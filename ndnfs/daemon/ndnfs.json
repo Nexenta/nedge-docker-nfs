@@ -1,5 +1,6 @@
 {
-    "nedgehost":    "localhost",
+    "nedgedata":    "localhost",
+    "nedgerest":    "localhost",
     "nedgeport":    8080,
     "clustername":  "cltest",
     "tenantname":   "test",

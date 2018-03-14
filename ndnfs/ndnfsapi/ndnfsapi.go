@@ -31,7 +31,8 @@ type Client struct {
 
 type Config struct {
     Name        string // ndnfs
-    Nedgehost   string // localhost
+    Nedgerest   string // localhost
+    Nedgedata   string // localhost
     Nedgeport   int16 // 8080
     Clustername string
     Tenantname  string
@@ -65,7 +66,7 @@ func ClientAlloc(configFile string) (c *Client, err error) {
         conf.Mountpoint = defaultMountPoint
     }
     NdnfsClient := &Client{
-        endpoint:       fmt.Sprintf("http://%s:%d/", conf.Nedgehost, conf.Nedgeport),
+        endpoint:       fmt.Sprintf("http://%s:%d/", conf.Nedgerest, conf.Nedgeport),
         chunksize:      conf.Chunksize,
         Config:         &conf,
     }
@@ -226,7 +227,7 @@ func (c *Client) DeleteVolume(name string) (err error) {
 func (c *Client) MountVolume(name string) (mnt string, err error) {
     log.Debug(DN, "Mounting Volume ", name)
 
-    nfs := fmt.Sprintf("%s:/%s/%s", c.Config.Nedgehost, c.Config.Tenantname, name)
+    nfs := fmt.Sprintf("%s:/%s/%s", c.Config.Nedgedata, c.Config.Tenantname, name)
     mnt = filepath.Join(c.Config.Mountpoint, name)
     args := []string{"-t", "nfs", nfs, mnt}
     if out, err := exec.Command("mount", args...).CombinedOutput(); err != nil {
@@ -239,7 +240,7 @@ func (c *Client) MountVolume(name string) (mnt string, err error) {
 
 func (c *Client) UnmountVolume(name string) (err error) {
     log.Debug(DN, "Unmounting Volume ", name)
-    nfs := fmt.Sprintf("%s:/%s", c.Config.Nedgehost, name)
+    nfs := fmt.Sprintf("%s:/%s", c.Config.Nedgedata, name)
     if out, err := exec.Command("umount", nfs).CombinedOutput(); err != nil {
         log.Error("Error running umount command: ", err, "{", string(out), "}")
     }
