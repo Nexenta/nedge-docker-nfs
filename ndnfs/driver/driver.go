@@ -253,7 +253,7 @@ func (d NdnfsDriver) Mount(r *volume.MountRequest) (*volume.MountResponse, error
 	}
 	log.Debug(DN, "Checking if volume is mounted ", r.Name)
 	out, err := exec.Command("mount").CombinedOutput()
-	if strings.Contains(string(out), mnt) {
+	if !strings.Contains(string(out), mnt) {
 		log.Debug(DN, "Mounting Volume ", r.Name)
 		args := []string{"-t", "nfs", nfs, mnt}
 		if out, err := exec.Command("mount", args...).CombinedOutput(); err != nil {
@@ -289,7 +289,7 @@ func (d NdnfsDriver) Unmount(r *volume.UnmountRequest) (err error) {
 	log.Info(DN, "Unmount volume: ", r.Name)
 	d.Mutex.Lock()
 	defer d.Mutex.Unlock()
-	nfs := fmt.Sprintf("%s/%s", d.Config.Mountpoint, r.Name)
+	nfs := fmt.Sprintf("%s:/%s/%s", d.Config.Nedgedata, d.Config.Tenantname, r.Name)
 	if out, err := exec.Command("umount", nfs).CombinedOutput(); err != nil {
 		log.Error("Error running umount command: ", err, "{", string(out), "}")
 	}
