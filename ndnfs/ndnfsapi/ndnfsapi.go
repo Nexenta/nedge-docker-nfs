@@ -174,7 +174,7 @@ func (c *Client) CreateVolume(name string, options map[string]string) (err error
     }
 
     data = make(map[string]interface{})
-    data["chunkSize"] = chunkSizeInt
+    data["ccow-chunkmap-chunk-size"] = chunkSizeInt
     data["serve"] = filepath.Join(cluster, tenant, name)
     url = fmt.Sprintf("service/%s/serve", service)
     body, err = c.Request("PUT", url, data)
