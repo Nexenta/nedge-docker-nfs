@@ -254,7 +254,7 @@ func (c *Client) MountVolume(name string) (mnt string, err error) {
 
 func (c *Client) UnmountVolume(name string) (err error) {
     log.Debug(DN, "Unmounting Volume ", name)
-    nfs := fmt.Sprintf("%s:/%s", c.Config.Nedgedata, name)
+    nfs := fmt.Sprintf("%s:/%s/%s", c.Config.Nedgedata, c.Config.Tenantname, name)
     if out, err := exec.Command("umount", nfs).CombinedOutput(); err != nil {
         log.Error("Error running umount command: ", err, "{", string(out), "}")
     }
