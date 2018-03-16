@@ -167,6 +167,7 @@ func (d NdnfsDriver) Create(r *volume.CreateRequest) (err error) {
 		service = r.Options["service"]
 	}
 	data["bucketName"] = r.Name
+	data["optionsObject"] = map[string]int{"ccow-chunkmap-chunk-size": chunkSizeInt}
 	url := fmt.Sprintf("clusters/%s/tenants/%s/buckets", cluster, tenant)
 
 	body, err := d.Request("POST", url, data)
@@ -184,7 +185,6 @@ func (d NdnfsDriver) Create(r *volume.CreateRequest) (err error) {
 	}
 
 	data = make(map[string]interface{})
-	data["ccow-chunkmap-chunk-size"] = chunkSizeInt
 	data["serve"] = filepath.Join(cluster, tenant, r.Name)
 	url = fmt.Sprintf("service/%s/serve", service)
 	body, err = d.Request("PUT", url, data)
