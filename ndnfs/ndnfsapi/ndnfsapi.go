@@ -2,6 +2,7 @@ package ndnfsapi
 
 import (
     "fmt"
+    "encoding/base64"
     "encoding/json"
     log "github.com/Sirupsen/logrus"
     "io/ioutil"
@@ -17,7 +18,7 @@ import (
 const defaultSize string = "1024";
 const defaultFSType string = "xfs";
 const defaultChunkSize int = 32768;
-const defaultMountPoint string = "/var/lib/ndvol"
+const defaultMountPoint string = "/var/lib/ndnfs"
 
 var (
     DN = "ndnfsapi "
@@ -31,11 +32,14 @@ type Client struct {
 
 type Config struct {
     Name        string // ndnfs
-    Nedgehost   string // localhost
+    Nedgerest   string // localhost
+    Nedgedata   string // localhost
     Nedgeport   int16 // 8080
     Clustername string
     Tenantname  string
     Chunksize   int
+    Username    string
+    Password    string
     Mountpoint  string
     Servicename string
 }
@@ -65,11 +69,16 @@ func ClientAlloc(configFile string) (c *Client, err error) {
         conf.Mountpoint = defaultMountPoint
     }
     NdnfsClient := &Client{
-        endpoint:       fmt.Sprintf("http://%s:%d/", conf.Nedgehost, conf.Nedgeport),
+        endpoint:       fmt.Sprintf("http://%s:%d/", conf.Nedgerest, conf.Nedgeport),
         chunksize:      conf.Chunksize,
         Config:         &conf,
     }
     return NdnfsClient, nil
+}
+
+func basicAuth(username, password string) string {
+    auth := username + ":" + password
+    return base64.StdEncoding.EncodeToString([]byte(auth))
 }
 
 func (c *Client) Request(method, endpoint string, data map[string]interface{}) (body []byte, err error) {
@@ -92,6 +101,7 @@ func (c *Client) Request(method, endpoint string, data map[string]interface{}) (
         req, err = http.NewRequest(method, url, strings.NewReader(string(datajson)))
     }
     req.Header.Set("Content-Type", "application/json")
+    req.Header.Set("Authorization", "Basic " + basicAuth(c.Config.Username, c.Config.Password))
     resp, err := client.Do(req)
     if err != nil {
         log.Panic("Error while handling request ", err)
@@ -164,7 +174,7 @@ func (c *Client) CreateVolume(name string, options map[string]string) (err error
     }
 
     data = make(map[string]interface{})
-    data["chunkSize"] = chunkSizeInt
+    data["ccow-chunkmap-chunk-size"] = chunkSizeInt
     data["serve"] = filepath.Join(cluster, tenant, name)
     url = fmt.Sprintf("service/%s/serve", service)
     body, err = c.Request("PUT", url, data)
@@ -226,20 +236,25 @@ func (c *Client) DeleteVolume(name string) (err error) {
 func (c *Client) MountVolume(name string) (mnt string, err error) {
     log.Debug(DN, "Mounting Volume ", name)
 
-    nfs := fmt.Sprintf("%s:/%s/%s", c.Config.Nedgehost, c.Config.Tenantname, name)
+    nfs := fmt.Sprintf("%s:/%s/%s", c.Config.Nedgedata, c.Config.Tenantname, name)
     mnt = filepath.Join(c.Config.Mountpoint, name)
     args := []string{"-t", "nfs", nfs, mnt}
-    if out, err := exec.Command("mount", args...).CombinedOutput(); err != nil {
-        log.Error("Error running mount command: ", err, "{", string(out), "}")
-        err = errors.New(fmt.Sprintf("%s: %s", err, out))
-        return mnt, err
+    log.Debug(DN, "Checking if volume is mounted ", name)
+    out, err := exec.Command("mount").CombinedOutput()
+    if !strings.Contains(string(out), mnt) {
+        log.Debug(DN, "Running mount cmd: mount ", args)
+        if out, err := exec.Command("mount", args...).CombinedOutput(); err != nil {
+            log.Error("Error running mount command: ", err, "{", string(out), "}")
+            err = errors.New(fmt.Sprintf("%s: %s", err, out))
+            return mnt, err
+        }
     }
     return mnt, err
 }
 
 func (c *Client) UnmountVolume(name string) (err error) {
     log.Debug(DN, "Unmounting Volume ", name)
-    nfs := fmt.Sprintf("%s:/%s", c.Config.Nedgehost, name)
+    nfs := fmt.Sprintf("%s:/%s/%s", c.Config.Nedgedata, c.Config.Tenantname, name)
     if out, err := exec.Command("umount", nfs).CombinedOutput(); err != nil {
         log.Error("Error running umount command: ", err, "{", string(out), "}")
     }

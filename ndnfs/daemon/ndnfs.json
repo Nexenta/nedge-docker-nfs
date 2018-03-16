@@ -1,9 +1,12 @@
 {
-    "nedgehost":    "localhost",
+    "nedgedata":    "localhost",
+    "nedgerest":    "localhost",
     "nedgeport":    8080,
     "clustername":  "cltest",
     "tenantname":   "test",
     "chunksize":    4096,
     "mountpoint": "/var/lib/ndnfs",
+    "username": "admin",
+    "password": "nexenta",
     "servicename": "nfs"
 }
