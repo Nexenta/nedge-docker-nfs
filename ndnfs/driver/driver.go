@@ -171,23 +171,25 @@ func (d NdnfsDriver) Create(r *volume.CreateRequest) (err error) {
 
 	body, err := d.Request("POST", url, data)
 	resp := make(map[string]interface{})
-	jsonerr := json.Unmarshal(body, &resp)
-	if (jsonerr != nil) {
-		log.Error(jsonerr)
-		return err
-	}
-	if (resp["code"] != nil) && (resp["code"] != "RT_ERR_EXISTS") {
-		err = errors.New(fmt.Sprintf("Error while handling request: %s", resp))
-		return err
+	if len(body) > 0  {
+		jsonerr := json.Unmarshal(body, &resp)
+		if (jsonerr != nil) {
+			log.Panic(jsonerr)
+			return err
+		}
+		if (resp["code"] != nil) && (resp["code"] != "RT_ERR_EXISTS") {
+			err = errors.New(fmt.Sprintf("Error while handling request: %s", resp))
+			log.Panic(err)
+		}
 	}
 
 	data = make(map[string]interface{})
-	data["chunkSize"] = chunkSizeInt
+	data["ccow-chunkmap-chunk-size"] = chunkSizeInt
 	data["serve"] = filepath.Join(cluster, tenant, r.Name)
 	url = fmt.Sprintf("service/%s/serve", service)
 	body, err = d.Request("PUT", url, data)
 	resp = make(map[string]interface{})
-	jsonerr = json.Unmarshal(body, &resp)
+	jsonerr := json.Unmarshal(body, &resp)
 	if (jsonerr != nil) {
 		log.Error(jsonerr)
 		return err
@@ -275,8 +277,17 @@ func (d NdnfsDriver) Remove(r *volume.RemoveRequest) error {
 	log.Info(DN, "Remove volume: ", r.Name)
 	d.Mutex.Lock()
 	defer d.Mutex.Unlock()
-	url := fmt.Sprintf("clusters/%s/tenants/%s/buckets/%s", d.Config.Clustername, d.Config.Tenantname, r.Name)
-	_, err := d.Request("DELETE", url, nil)
+	service := d.Config.Servicename
+	data := make(map[string]interface{})
+	data["serve"] = filepath.Join(d.Config.Clustername, d.Config.Tenantname, r.Name)
+	url := fmt.Sprintf("service/%s/serve", service)
+	_, err := d.Request("DELETE", url, data)
+	if err != nil {	
+		log.Info("Error while handling request", err)
+	}
+
+	url = fmt.Sprintf("clusters/%s/tenants/%s/buckets/%s", d.Config.Clustername, d.Config.Tenantname, r.Name)
+	_, err = d.Request("DELETE", url, nil)
 
 	mnt := filepath.Join(d.Config.Mountpoint, r.Name)
 	if out, err := exec.Command("rm", "-rf", mnt).CombinedOutput(); err != nil {
