@@ -137,8 +137,8 @@ func (c *Client) CreateVolume(name string, options map[string]string) (err error
         chunkSizeInt = c.chunksize
     }
 
-    if chunkSizeInt < 4096 {
-        err = errors.New("chunksize must have a minimum value of 4096")
+    if chunkSizeInt < 4096 || chunkSizeInt > 1048576 || !(isPowerOfTwo(chunkSizeInt)) {
+        err = errors.New("Chunksize must be in range of 4096 - 1048576 and be a power of 2")
         log.Error(err)
         return err
     }
@@ -165,16 +165,19 @@ func (c *Client) CreateVolume(name string, options map[string]string) (err error
     body, err := c.Request("POST", url, data)
     resp := make(map[string]interface{})
     jsonerr := json.Unmarshal(body, &resp)
-    if (jsonerr != nil) {
-        log.Error(jsonerr)
-    }
-    if (resp["code"] != nil) && (resp["code"] != "RT_ERR_EXISTS") {
-        err = errors.New(fmt.Sprintf("Error while handling request: %s", resp))
-        return err
+    if len(body) > 0 {
+        if (jsonerr != nil) {
+            log.Error(jsonerr)
+        }
+
+        if (resp["code"] != nil) && (resp["code"] != "RT_ERR_EXISTS") {
+            err = errors.New(fmt.Sprintf("Error while handling request: %s", resp))
+            return err
+        }
     }
 
     data = make(map[string]interface{})
-    data["ccow-chunkmap-chunk-size"] = chunkSizeInt
+    data["optionsObject"] = map[string]int{"ccow-chunkmap-chunk-size": chunkSizeInt}
     data["serve"] = filepath.Join(cluster, tenant, name)
     url = fmt.Sprintf("service/%s/serve", service)
     body, err = c.Request("PUT", url, data)
@@ -309,4 +312,8 @@ func (c *Client) GetNfsList() (nfsList []string, err error) {
         nfsList[i] = strings.Trim(nfsList[i], "\"")
     }
     return nfsList, err
+}
+
+func isPowerOfTwo(x int) (res bool) {
+    return (x != 0) && ((x & (x - 1)) == 0)
 }
