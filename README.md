@@ -47,27 +47,16 @@ Should be run as root and command may differ depending on your OS.
 You can find instructions and steps on the Docker website here:
 [Get Docker](https://docs.docker.com/engine/)
 
-## Driver Installation
+## Driver build
 After the above Prerequisites are met, use the Makefile:
-  ```
-  cd /opt/nedge/thirdparty/ndnfs
-  make install
-  ```
-
-## Configuration
-Default path to config file is
-  ```
-  /opt/nedge/etc/ccow/ndnfs.json
-  ```
-
-## Starting the daemon
-After install and setting up a configuration, all you need to is start the
-nexenta-docker-driver daemon so tha it can accept requests from Docker.
 
   ```
-  sudo /opt/nedge/sbin/ndnfs daemon start -v
+  git clone -b stable/v13 --single-branch https://github.com/Nexenta/nedge-docker-nfs.git $GOPATH/src/github.com/Nexenta/nedge-docker-nfs
+  cd $GOPATH/src/github.com/Nexenta/nedge-docker-nfs
+  make build
   ```
 
+  Driver will be cloned, will download all related modules and libraries and will built in $GOPATH/bin folder
 ## Usage Examples
 Now that the daemon is running, you're ready to issue calls via the Docker
 Volume API and have the requests serviced by the NexentaEdge Driver.
