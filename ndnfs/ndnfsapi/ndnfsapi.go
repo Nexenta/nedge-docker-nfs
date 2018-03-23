@@ -142,7 +142,6 @@ func (c *Client) CreateVolume(name string, options map[string]string) (err error
         log.Error(err)
         return err
     }
-    
     data := make(map[string]interface{})
     if options["tenant"] == "" {
         cluster, tenant = c.Config.Clustername, c.Config.Tenantname
@@ -200,16 +199,6 @@ func (c *Client) CreateVolume(name string, options map[string]string) (err error
 
 func (c *Client) DeleteVolume(name string) (err error) {
     log.Debug(DN, "Deleting Volume ", name)
-    nfsList, err := c.GetNfsList()
-    if err != nil {
-        log.Panic("Error getting nfs list", err)
-    }
-    path := ""
-    for i := range(nfsList) {
-        if strings.Contains(nfsList[i], name) {
-            path = nfsList[i]
-        }
-    }
     var service string
     if os.Getenv("CCOW_SVCNAME") != "" {
         service = os.Getenv("CCOW_SVCNAME")
@@ -217,18 +206,17 @@ func (c *Client) DeleteVolume(name string) (err error) {
         service = c.Config.Servicename
     }
     data := make(map[string]interface{})
-    data["serve"] = path
+    data["serve"] = filepath.Join(c.Config.Clustername, c.Config.Tenantname, name)
     url := fmt.Sprintf("service/%s/serve", service)
     _, err = c.Request("DELETE", url, data)
     if err != nil {
         log.Panic("Error while handling request", err)
     }
 
-    parts := strings.Split(path, "/")
-    url = fmt.Sprintf("clusters/%s/tenants/%s/buckets/%s", parts[0], parts[1], parts[2])
+    url = fmt.Sprintf("clusters/%s/tenants/%s/buckets/%s", c.Config.Clustername, c.Config.Tenantname, name)
     _, err = c.Request("DELETE", url, nil)
-
     mnt := filepath.Join(c.Config.Mountpoint, name)
+    log.Info(DN, " Mountpoint to delete : ", mnt)
     if out, err := exec.Command("rm", "-rf", mnt).CombinedOutput(); err != nil {
         log.Info("Error running rm command: ", err, "{", string(out), "}")
     }
