@@ -4,12 +4,11 @@ NexentaEdge Plugin for Docker Volumes
   This plugin provides the ability to use NexentaEdge 2.0 Clusters as backend
   devices in a Docker environment over NFS protocol.
 
-## Configuration
-Clone this repository and cd to ndnfsv2_builder.
-Create a /etc/ndnfs folder and put your ndnfs.json config file there.
+## Build driver
+Clone this repository.
 Example of a config file can be found in the ndnfs/driver folder.
   ```
-  git clone -b v2_plugin https://github.com/Nexenta/nedge-docker-nfs
+  git clone -b stable/v17 --single-branch https://github.com/nexenta/nedge-docker-nfs.git $GOPATH/src/github.com/nexenta/nedge-docker-nfs 
   mkdir /etc/ndnfs
   cp ndnfs/driver/ndnfs.json /etc/ndnfs
   ```
