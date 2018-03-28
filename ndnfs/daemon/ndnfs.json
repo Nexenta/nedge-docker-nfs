@@ -4,7 +4,7 @@
     "nedgeport":    8080,
     "clustername":  "cltest",
     "tenantname":   "test",
-    "chunksize":    4096,
+    "chunksize":    1048576,
     "mountpoint": "/var/lib/ndnfs",
     "username": "admin",
     "password": "nexenta",
