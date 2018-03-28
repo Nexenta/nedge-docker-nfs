@@ -17,7 +17,7 @@ import (
 	"strconv"
 )
 
-const defaultChunkSize int = 32768;
+const defaultChunkSize int = 1048576;
 const defaultMountPoint string = "/var/lib/ndnfs"
 
 var (

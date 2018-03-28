@@ -3,7 +3,7 @@
     "nedgeport":    8080,
     "clustername":  "cltest",
     "tenantname":   "test",
-    "chunksize":    4096,
+    "chunksize":    1048576,
     "servicename": "nfs",
     "username": "admin",
     "password": "nexenta",
