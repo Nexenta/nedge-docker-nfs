@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/nexenta/nedge-docker-nfs/ndnfs/ndnfscli"
+	"github.com/Nexenta/nedge-docker-nfs/ndnfs/ndnfscli"
 	"os"
 )
 

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os/exec"
 	"github.com/urfave/cli"
-	"github.com/nexenta/nedge-docker-nfs/ndnfs/driver"
+	"github.com/Nexenta/nedge-docker-nfs/ndnfs/driver"
 	"github.com/docker/go-plugins-helpers/volume"
 	log "github.com/Sirupsen/logrus"
 	"path/filepath"
