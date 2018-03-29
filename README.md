@@ -13,10 +13,10 @@ Example of a config file can be found in the ndnfs/driver folder.
   cp ndnfs/driver/ndnfs.json /etc/ndnfs
   ```
 
-## Driver Installation
-After the above Prerequisites are met, use the Makefile from ndnfsv2_builder folder:
+## Driver Build
+After the above Prerequisites are met, use the Makefile from  $GOPATH/src/github.com/Nexenta/nedge-docker-nfs folder:
   ```
-  cd nedge-docker-nfs/ndnfsv2_builder
+  cd $GOPATH/src/github.com/Nexenta/nedge-docker-nfs 
   make
   ```
 
