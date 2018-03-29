@@ -1,10 +1,18 @@
+NEDGE_DEST = $(DESTDIR)/opt/nedge/sbin
+NEDGE_ETC = $(DESTDIR)/opt/nedge/etc/ccow
+NDNFS_EXE = ndnfs
+
+ifeq ($(GOPATH),)
+GOPATH = $(shell pwd)
+endif
+
 build:
-	go get -d -v github.com/opencontainers/runc
+	GOPATH=$(GOPATH) go get -d -v github.com/opencontainers/runc
 	cd $(GOPATH)/src/github.com/opencontainers/runc; git checkout aada2af
-	go get -v github.com/docker/go-plugins-helpers/volume
+	GOPATH=$(GOPATH) go get -v github.com/docker/go-plugins-helpers/volume
 	cd $(GOPATH)/src/github.com/docker/go-plugins-helpers/volume; git checkout d7fc7d0
 	cd $(GOPATH)/src/github.com/docker/go-connections; git checkout acbe915
-	go get -v github.com/Nexenta/nedge-docker-nfs/...
+	GOPATH=$(GOPATH) go get -v github.com/Nexenta/nedge-docker-nfs/...
 
 lint:
 	go get -v github.com/golang/lint/golint
@@ -15,3 +23,10 @@ lint:
 		fi; \
 	done
 
+install:
+	cp -n $(GOPATH)/src/github.com/Nexenta/nedge-docker-nfs/ndnfs/daemon/ndnfs.json $(NEDGE_ETC)/ndnfs.json.example
+	cp -f $(GOPATH)/bin/$(NDNFS_EXE) $(NEDGE_DEST)
+
+uninstall:
+	rm -f $(NEDGE_ETC)/ndnfs.json
+	rm -f $(NEDGE_DEST)/ndnfs
