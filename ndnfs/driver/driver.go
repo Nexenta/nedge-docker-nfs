@@ -316,7 +316,7 @@ func (d NdnfsDriver) GetNfsList() (nfsList []string, err error) {
 		body, err = d.Request(
 			"GET", fmt.Sprintf("service/%s", d.Config.Servicename), nil)
 	}
-			
+
 	r := make(map[string]map[string]map[string]interface{})
 	jsonerr := json.Unmarshal(body, &r)
 	if (jsonerr != nil) {
@@ -325,17 +325,22 @@ func (d NdnfsDriver) GetNfsList() (nfsList []string, err error) {
 	if r["response"]["data"]["X-Service-Objects"] == nil {
 		return
 	}
+	var exports []string
 	strList := r["response"]["data"]["X-Service-Objects"].(string)
-	err = json.Unmarshal([]byte(strList), &nfsList)
+	err = json.Unmarshal([]byte(strList), &exports)
 	if err != nil {
 	    log.Fatal(err)
 	}
-	for i, v := range(nfsList) {
-		if len(strings.Split(nfsList[i], ",")) > 1 {
-			nfsList[i] = strings.Split(strings.Split(v, ",")[1], "@")[0]
-		} else {
-			nfsList[i] = v
-		}
+	for i, v := range(exports) {
+            if len(strings.Split(v, ",")) > 1 {
+	        var service = strings.Split(v, ",")[1]
+                var parts = strings.Split(service, "@")
+                if strings.HasPrefix(parts[1], fmt.Sprintf("%s/%s", d.Config.Clustername, d.Config.Tenantname)) {
+                    nfsList = append(nfsList, parts[0])
+	        }
+            } else {
+		nfsList[i] = v
+	    }
 	}
 	return nfsList, err
 }
