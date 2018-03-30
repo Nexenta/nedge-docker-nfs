@@ -12,7 +12,9 @@ build:
 	GOPATH=$(GOPATH) go get -v github.com/docker/go-plugins-helpers/volume
 	cd $(GOPATH)/src/github.com/docker/go-plugins-helpers/volume; git checkout d7fc7d0
 	cd $(GOPATH)/src/github.com/docker/go-connections; git checkout acbe915
-	GOPATH=$(GOPATH) go get -v github.com/Nexenta/nedge-docker-nfs/...
+	GOPATH=$(GOPATH) go get -d github.com/Nexenta/nedge-docker-nfs
+	cd $(GOPATH)/src/github.com/Nexenta/nedge-docker-nfs; git checkout stable/v13
+	GOPATH=$(GOPATH) go get github.com/Nexenta/nedge-docker-nfs/...
 
 lint:
 	go get -v github.com/golang/lint/golint
