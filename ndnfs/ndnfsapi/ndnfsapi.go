@@ -294,14 +294,19 @@ func (c *Client) GetNfsList() (nfsList []string, err error) {
     if r["response"]["data"]["X-Service-Objects"] == nil {
         return
     }
+    var exports []string
     strList := r["response"]["data"]["X-Service-Objects"].(string)
-    err = json.Unmarshal([]byte(strList), &nfsList)
+    err = json.Unmarshal([]byte(strList), &exports)
     if err != nil {
         log.Fatal(err)
     }
-    for i, v := range(nfsList) {
-        if len(strings.Split(nfsList[i], ",")) > 1 {
-            nfsList[i] = strings.Split(strings.Split(v, ",")[1], "@")[0]
+    for i, v := range(exports) {
+        if len(strings.Split(v, ",")) > 1 {
+            var service = strings.Split(v, ",")[1]
+            var parts = strings.Split(service, "@")
+            if strings.HasPrefix(parts[1], fmt.Sprintf("%s/%s", c.Config.Clustername, c.Config.Tenantname)) {
+                nfsList = append(nfsList, parts[0])
+	    }
         } else {
             nfsList[i] = v
         }
