@@ -175,6 +175,26 @@ func (c *Client) CreateVolume(name string, options map[string]string) (err error
         }
     }
 
+    //setup service configuration
+    if options["acl"] != "" {
+       configUrl := fmt.Sprintf("/service/%s/config", service)
+       aclName := fmt.Sprintf("X-NFS-ACL-%s/%s", tenant, name)
+       data = make(map[string]interface{})
+       data[aclName] = options["acl"]
+
+       body, err = c.Request("PUT", configUrl, data)
+       resp = make(map[string]interface{})
+       jsonerr = json.Unmarshal(body, &resp)
+       if (jsonerr != nil) {
+           log.Error(jsonerr)
+       }
+       if resp["code"] == "EINVAL" {
+           err = errors.New(fmt.Sprintf("Error while handling request: %s", resp))
+           return err
+       }
+    }
+
+
     data = make(map[string]interface{})
     data["optionsObject"] = map[string]int{"ccow-chunkmap-chunk-size": chunkSizeInt}
     data["serve"] = filepath.Join(cluster, tenant, name)
