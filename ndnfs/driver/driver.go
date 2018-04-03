@@ -180,15 +180,15 @@ func (d NdnfsDriver) Create(r *volume.CreateRequest) (err error) {
 		}
 	}
         //setup service configuration
-        if options["acl"] != "" {
+        if r.Options["acl"] != "" {
             configUrl := fmt.Sprintf("service/%s/config", service)
-            aclName := fmt.Sprintf("X-NFS-ACL-%s/%s", tenant, name)
+            aclName := fmt.Sprintf("X-NFS-ACL-%s/%s", tenant, r.Name)
             data = make(map[string]interface{})
-            data[aclName] = options["acl"]
+            data[aclName] = r.Options["acl"]
 
-            body, err = c.Request("PUT", configUrl, data)
+            body, err = d.Request("PUT", configUrl, data)
             resp = make(map[string]interface{})
-            jsonerr = json.Unmarshal(body, &resp)
+            jsonerr := json.Unmarshal(body, &resp)
             if (jsonerr != nil) {
                  log.Error(jsonerr)
             }
