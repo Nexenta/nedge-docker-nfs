@@ -149,14 +149,10 @@ func (d NdnfsDriver) Create(r *volume.CreateRequest) (err error) {
 		err = errors.New("Chunksize must be in range of 4096 - 1048576 and be a power of 2")
 		return err
 	}
-	
+
 	data := make(map[string]interface{})
-	if r.Options["tenant"] == "" {
-		cluster, tenant = d.Config.Clustername, d.Config.Tenantname
-	} else {
-		cluster, tenant = strings.Split(
-			r.Options["tenant"], "/")[0], strings.Split(r.Options["tenant"], "/")[1]
-	}
+	cluster, tenant = d.Config.Clustername, d.Config.Tenantname
+
 	if r.Options["service"] == "" {
 		if os.Getenv("CCOW_SVCNAME") != "" {
 			service = os.Getenv("CCOW_SVCNAME")
@@ -183,6 +179,24 @@ func (d NdnfsDriver) Create(r *volume.CreateRequest) (err error) {
 			log.Panic(err)
 		}
 	}
+        //setup service configuration
+        if options["acl"] != "" {
+            configUrl := fmt.Sprintf("service/%s/config", service)
+            aclName := fmt.Sprintf("X-NFS-ACL-%s/%s", tenant, name)
+            data = make(map[string]interface{})
+            data[aclName] = options["acl"]
+
+            body, err = c.Request("PUT", configUrl, data)
+            resp = make(map[string]interface{})
+            jsonerr = json.Unmarshal(body, &resp)
+            if (jsonerr != nil) {
+                 log.Error(jsonerr)
+            }
+            if resp["code"] == "EINVAL" {
+                err = errors.New(fmt.Sprintf("Error while handling request: %s", resp))
+                return err
+            }
+        }
 
 	data = make(map[string]interface{})
 	data["serve"] = filepath.Join(cluster, tenant, r.Name)
@@ -282,7 +296,7 @@ func (d NdnfsDriver) Remove(r *volume.RemoveRequest) error {
 	data["serve"] = filepath.Join(d.Config.Clustername, d.Config.Tenantname, r.Name)
 	url := fmt.Sprintf("service/%s/serve", service)
 	_, err := d.Request("DELETE", url, data)
-	if err != nil {	
+	if err != nil {
 		log.Info("Error while handling request", err)
 	}
 
