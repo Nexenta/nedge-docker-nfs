@@ -181,7 +181,7 @@ func (d NdnfsDriver) Create(r *volume.CreateRequest) (err error) {
 	}
         //setup service configuration
         if options["acl"] != "" {
-            configUrl := fmt.Sprintf("/service/%s/config", service)
+            configUrl := fmt.Sprintf("service/%s/config", service)
             aclName := fmt.Sprintf("X-NFS-ACL-%s/%s", tenant, name)
             data = make(map[string]interface{})
             data[aclName] = options["acl"]
