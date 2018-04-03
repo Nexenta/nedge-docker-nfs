@@ -180,7 +180,8 @@ func (c *Client) CreateVolume(name string, options map[string]string) (err error
        configUrl := fmt.Sprintf("/service/%s/config", service)
        aclName := fmt.Sprintf("X-NFS-ACL-%s/%s", tenant, name)
        data = make(map[string]interface{})
-       data[aclName] = options["acl"]
+       data["param"] = aclName
+       data["value"] = options["acl"]
 
        body, err = c.Request("PUT", configUrl, data)
        resp = make(map[string]interface{})
