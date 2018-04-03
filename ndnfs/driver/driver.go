@@ -100,6 +100,7 @@ func (d *NdnfsDriver) Request(method, endpoint string, data map[string]interface
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Basic " + basicAuth(d.Config.Username, d.Config.Password))
 	resp, err := client.Do(req)
+        log.Debug("Response :", resp, " and error: ", err)
 	if err != nil {
 		log.Fatal("Error while handling request ", err)
 	}
