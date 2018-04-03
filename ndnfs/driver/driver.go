@@ -185,7 +185,8 @@ func (d NdnfsDriver) Create(r *volume.CreateRequest) (err error) {
             configUrl := fmt.Sprintf("service/%s/config", service)
             aclName := fmt.Sprintf("X-NFS-ACL-%s/%s", tenant, r.Name)
             data = make(map[string]interface{})
-            data[aclName] = r.Options["acl"]
+            data["param"] = aclName
+            data["value"] = r.Options["acl"]
 
             body, err = d.Request("PUT", configUrl, data)
             resp = make(map[string]interface{})
