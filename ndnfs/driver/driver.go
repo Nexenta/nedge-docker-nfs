@@ -168,8 +168,8 @@ func (d NdnfsDriver) Create(r *volume.CreateRequest) (err error) {
 
 	body, err := d.Request("POST", url, data)
 	resp := make(map[string]interface{})
+        jsonerr := json.Unmarshal(body, &resp)
 	if len(body) > 0  {
-		jsonerr := json.Unmarshal(body, &resp)
 		if (jsonerr != nil) {
 			log.Panic(jsonerr)
 			return err
@@ -188,7 +188,7 @@ func (d NdnfsDriver) Create(r *volume.CreateRequest) (err error) {
 
             body, err = d.Request("PUT", configUrl, data)
             resp = make(map[string]interface{})
-            jsonerr := json.Unmarshal(body, &resp)
+            jsonerr = json.Unmarshal(body, &resp)
             if (jsonerr != nil) {
                  log.Error(jsonerr)
             }
@@ -203,7 +203,7 @@ func (d NdnfsDriver) Create(r *volume.CreateRequest) (err error) {
 	url = fmt.Sprintf("service/%s/serve", service)
 	body, err = d.Request("PUT", url, data)
 	resp = make(map[string]interface{})
-	jsonerr := json.Unmarshal(body, &resp)
+	jsonerr = json.Unmarshal(body, &resp)
 	if (jsonerr != nil) {
 		log.Error(jsonerr)
 		return err
