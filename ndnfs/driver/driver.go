@@ -204,13 +204,15 @@ func (d NdnfsDriver) Create(r *volume.CreateRequest) (err error) {
 	body, err = d.Request("PUT", url, data)
 	resp = make(map[string]interface{})
 	jsonerr = json.Unmarshal(body, &resp)
-	if (jsonerr != nil) {
+        if len(body) > 0 {
+	    if (jsonerr != nil) {
 		log.Error(jsonerr)
-		return err
-	}
-	if resp["code"] == "EINVAL" {
+		    return err
+	    }
+	    if resp["code"] == "EINVAL" {
 		err = errors.New(fmt.Sprintf("Error while handling request: %s", resp))
 		return err
+	    }
 	}
 	return err
 }
