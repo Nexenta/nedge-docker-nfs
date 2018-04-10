@@ -4,7 +4,7 @@ import (
     "fmt"
     "encoding/base64"
     "encoding/json"
-    log "github.com/sirupsen/logrus"
+    log "github.com/Sirupsen/logrus"
     "io/ioutil"
     "errors"
     "net/http"
