@@ -4,7 +4,7 @@ import (
     "fmt"
     "encoding/base64"
     "encoding/json"
-    log "github.com/Sirupsen/logrus"
+    log "github.com/sirupsen/logrus"
     "io/ioutil"
     "errors"
     "net/http"
@@ -175,25 +175,13 @@ func (c *Client) CreateVolume(name string, options map[string]string) (err error
         }
     }
 
-    //setup service configuration
-    if options["acl"] != "" {
-       configUrl := fmt.Sprintf("/service/%s/config", service)
-       aclName := fmt.Sprintf("X-NFS-ACL-%s/%s", tenant, name)
-       data = make(map[string]interface{})
-       data["param"] = aclName
-       data["value"] = options["acl"]
-
-       body, err = c.Request("PUT", configUrl, data)
-       resp = make(map[string]interface{})
-       jsonerr = json.Unmarshal(body, &resp)
-       if (jsonerr != nil) {
-           log.Error(jsonerr)
-       }
-       if resp["code"] == "EINVAL" {
-           err = errors.New(fmt.Sprintf("Error while handling request: %s", resp))
-           return err
-       }
-    }
+	//setup service configuration
+	if options["acl"] != "" {
+		err := c.setUpAclParams(service, tenant, name, options["acl"])
+		if err != nil {
+			log.Error(err)
+		}
+	}
 
 
     data = make(map[string]interface{})
@@ -207,8 +195,7 @@ func (c *Client) CreateVolume(name string, options map[string]string) (err error
         log.Error(jsonerr)
     }
     if resp["code"] == "EINVAL" {
-        err = errors.New(fmt.Sprintf("Error while handling request: %s", resp))
-        return err
+        return fmt.Errorf("Error while handling request: %s", resp)
     }
 
     mnt := filepath.Join(c.Config.Mountpoint, name)
@@ -226,6 +213,10 @@ func (c *Client) DeleteVolume(name string) (err error) {
     } else {
         service = c.Config.Servicename
     }
+
+    // before unserve bucket we need to unset ACL property
+    c.removeAclParam(service, c.Config.Tenantname, name)
+
     data := make(map[string]interface{})
     data["serve"] = filepath.Join(c.Config.Clustername, c.Config.Tenantname, name)
     url := fmt.Sprintf("service/%s/serve", service)
@@ -244,6 +235,41 @@ func (c *Client) DeleteVolume(name string) (err error) {
 
     return err
 }
+
+func (c *Client) setUpAclParams(serviceName string, tenantName string, bucketName string, value string) (err error) {
+
+	aclName := fmt.Sprintf("X-NFS-ACL-%s/%s", tenantName, bucketName)
+	return c.setupConfigRequest(serviceName, aclName, value)
+}
+
+func (c *Client) removeAclParam(serviceName string, tenantName string, bucketName string) (err error) {
+
+	aclName := fmt.Sprintf("X-NFS-ACL-%s/%s", tenantName, bucketName)
+	return c.setupConfigRequest(serviceName, aclName, "")
+}
+
+func (c *Client) setupConfigRequest(serviceName string, configParamName string, configParamValue string) (err error) {
+
+	log.Infof("setupConfigRequest: serviceName:%s, configParamName:%s, configParamValue:%s", serviceName, configParamName, configParamValue)
+	configUrl := fmt.Sprintf("/service/%s/config", serviceName)
+
+	data := make(map[string]interface{})
+	data["param"] = configParamName
+	data["value"] = configParamValue
+
+	body, err := c.Request("PUT", configUrl, data)
+	resp := make(map[string]interface{})
+	jsonerr := json.Unmarshal(body, &resp)
+	if jsonerr != nil {
+		log.Error(jsonerr)
+	}
+	if resp["code"] == "EINVAL" {
+		err = fmt.Errorf("Error while handling request: %s", resp)
+	}
+	return err
+}
+
+
 
 func (c *Client) MountVolume(name string) (mnt string, err error) {
     log.Debug(DN, "Mounting Volume ", name)
