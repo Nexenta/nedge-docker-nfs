@@ -7,12 +7,7 @@ ifeq ($(GOPATH),)
 endif
 
 build:
-	GOPATH=$(GOPATH) go get -d -v github.com/opencontainers/runc
-	cd $(GOPATH)/src/github.com/opencontainers/runc; git checkout aada2af
-	GOPATH=$(GOPATH) go get -v github.com/docker/go-plugins-helpers/volume
-	cd $(GOPATH)/src/github.com/docker/go-plugins-helpers/volume; git checkout d7fc7d0
-	cd $(GOPATH)/src/github.com/docker/go-connections; git checkout acbe915
-	#GOPATH=$(GOPATH) go get ./ndnfs/...
+	GOPATH=$(GOPATH) go build -o $(GOPATH)/bin/$(NDNFS_EXE) ./ndnfs/ndnfs.go
 
 lint:
 	go get -v github.com/golang/lint/golint
