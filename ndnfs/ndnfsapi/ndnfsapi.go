@@ -13,7 +13,7 @@ import (
 	"strconv"
 	"strings"
 
-	log "github.com/sirupsen/logrus"
+	log "github.com/Sirupsen/logrus"
 )
 
 const defaultSize string = "1024"
@@ -252,9 +252,9 @@ func (c *Client) createBucket(clusterName string, tenantName string, bucketName 
 }
 
 func (c *Client) deleteBucket(clusterName string, tenantName string, bucketName string) (err error) {
-	path = fmt.Sprintf("clusters/%s/tenants/%s/buckets/%s", clusterName, tenantName, bucketName)
+	path := fmt.Sprintf("clusters/%s/tenants/%s/buckets/%s", clusterName, tenantName, bucketName)
 
-	_, err := c.doNedgeRequest("DELETE", path, nil)
+	_, err = c.doNedgeRequest("DELETE", path, nil)
 	return err
 }
 
@@ -264,7 +264,7 @@ func (c *Client) serve(serviceName string, clusterName string, tenantName string
 	data := make(map[string]interface{})
 	data["serve"] = serve
 
-	_, err := c.doNedgeRequest("PUT", path, serve)
+	_, err = c.doNedgeRequest("PUT", path, data)
 	return err
 }
 
@@ -274,7 +274,7 @@ func (c *Client) unserve(serviceName string, clusterName string, tenantName stri
 	data := make(map[string]interface{})
 	data["serve"] = serve
 
-	_, err := c.doNedgeRequest("DELETE", path, nil)
+	_, err = c.doNedgeRequest("DELETE", path, nil)
 	return err
 }
 
@@ -297,7 +297,7 @@ func (c *Client) setupConfigRequest(serviceName string, configParamName string, 
 	data["param"] = configParamName
 	data["value"] = configParamValue
 
-	_, err := c.doNedgeRequest("PUT", path, data)
+	_, err = c.doNedgeRequest("PUT", path, data)
 	return err
 }
 
@@ -309,7 +309,7 @@ func (c *Client) doNedgeRequest(method string, path string, data map[string]inte
 	}
 	if len(body) == 0 {
 		log.Error("NedgeResponse body is 0")
-		return body, fmt.Error("NedgeResponse body is 0")
+		return body, fmt.Errorf("Fatal %s", "NedgeResponse body is 0")
 	}
 
 	resp := make(map[string]interface{})
