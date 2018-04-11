@@ -2,7 +2,7 @@ package ndnfscli
 
 import (
 	"fmt"
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 	"github.com/Nexenta/nedge-docker-nfs/ndnfs/ndnfsapi"
 )

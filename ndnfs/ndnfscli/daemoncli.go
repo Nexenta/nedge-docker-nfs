@@ -4,7 +4,7 @@ import (
 	"github.com/urfave/cli"
 	ndnfsDaemon "github.com/Nexenta/nedge-docker-nfs/ndnfs/daemon"
 	"github.com/sevlyar/go-daemon"
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	"syscall"
 )
 
