@@ -12,7 +12,7 @@ build:
 	GOPATH=$(GOPATH) go get -v github.com/docker/go-plugins-helpers/volume
 	cd $(GOPATH)/src/github.com/docker/go-plugins-helpers/volume; git checkout d7fc7d0
 	cd $(GOPATH)/src/github.com/docker/go-connections; git checkout acbe915
-	GOPATH=$(GOPATH) go get ./ndnfs/...
+	#GOPATH=$(GOPATH) go get ./ndnfs/...
 
 lint:
 	go get -v github.com/golang/lint/golint
