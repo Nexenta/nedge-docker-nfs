@@ -159,6 +159,7 @@ func (c *Client) CreateVolume(name string, options map[string]string) (err error
         service = options["service"]
     }
     data["bucketName"] = name
+    data["optionsObject"] = map[string]int{"ccow-chunkmap-chunk-size": chunkSizeInt}
     url := fmt.Sprintf("clusters/%s/tenants/%s/buckets", cluster, tenant)
 
     body, err := c.Request("POST", url, data)
@@ -184,11 +185,9 @@ func (c *Client) CreateVolume(name string, options map[string]string) (err error
 	}
 
 
-    data = make(map[string]interface{})
-    data["optionsObject"] = map[string]int{"ccow-chunkmap-chunk-size": chunkSizeInt}
     data["serve"] = filepath.Join(cluster, tenant, name)
     url = fmt.Sprintf("service/%s/serve", service)
-    body, err = c.Request("PUT", url, data)
+    body, err = c.Request("PUT", url, nil)
     resp = make(map[string]interface{})
     jsonerr = json.Unmarshal(body, &resp)
     if (jsonerr != nil) {
