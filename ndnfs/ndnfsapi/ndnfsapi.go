@@ -198,11 +198,7 @@ func (c *Client) CreateVolume(name string, options map[string]string) (err error
         return fmt.Errorf("Error while handling request: %s", resp)
     }
 
-    mnt := filepath.Join(c.Config.Mountpoint, name)
-    if out, err := exec.Command("mkdir", "-p", mnt).CombinedOutput(); err != nil {
-        log.Info("Error running mkdir command: ", err, "{", string(out), "}")
-    }
-    return err
+	return err
 }
 
 func (c *Client) DeleteVolume(name string) (err error) {
@@ -223,14 +219,6 @@ func (c *Client) DeleteVolume(name string) (err error) {
     _, err = c.Request("DELETE", url, data)
     if err != nil {
         log.Panic("Error while handling request", err)
-    }
-
-    url = fmt.Sprintf("clusters/%s/tenants/%s/buckets/%s", c.Config.Clustername, c.Config.Tenantname, name)
-    _, err = c.Request("DELETE", url, nil)
-    mnt := filepath.Join(c.Config.Mountpoint, name)
-    log.Info(DN, " Mountpoint to delete : ", mnt)
-    if out, err := exec.Command("rm", "-rf", mnt).CombinedOutput(); err != nil {
-        log.Info("Error running rm command: ", err, "{", string(out), "}")
     }
 
     return err
@@ -274,6 +262,12 @@ func (c *Client) setupConfigRequest(serviceName string, configParamName string, 
 func (c *Client) MountVolume(name string) (mnt string, err error) {
     log.Debug(DN, "Mounting Volume ", name)
 
+    mnt = filepath.Join(c.Config.Mountpoint, name)
+    if out, err := exec.Command("mkdir", "-p", mnt).CombinedOutput(); err != nil {
+        log.Info("Error running mkdir command: ", err, "{", string(out), "}")
+	return "", err
+    }
+
     nfs := fmt.Sprintf("%s:/%s/%s", c.Config.Nedgedata, c.Config.Tenantname, name)
     mnt = filepath.Join(c.Config.Mountpoint, name)
     args := []string{"-t", "nfs", nfs, mnt}
@@ -295,6 +289,14 @@ func (c *Client) UnmountVolume(name string) (err error) {
     nfs := fmt.Sprintf("%s:/%s/%s", c.Config.Nedgedata, c.Config.Tenantname, name)
     if out, err := exec.Command("umount", nfs).CombinedOutput(); err != nil {
         log.Error("Error running umount command: ", err, "{", string(out), "}")
+    }
+
+    url := fmt.Sprintf("clusters/%s/tenants/%s/buckets/%s", c.Config.Clustername, c.Config.Tenantname, name)
+    _, err = c.Request("DELETE", url, nil)
+    mnt := filepath.Join(c.Config.Mountpoint, name)
+    log.Info(DN, " Mountpoint to delete : ", mnt)
+    if out, err := exec.Command("rm", "-rf", mnt).CombinedOutput(); err != nil {
+        log.Info("Error running rm command: ", err, "{", string(out), "}")
     }
 
     return err
