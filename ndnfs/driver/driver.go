@@ -78,6 +78,52 @@ func DriverAlloc(cfgFile string) NdnfsDriver {
 	return d
 }
 
+func (d *NdnfsDriver) setUpAclParams(serviceName string, tenantName string, bucketName string, value string) (err error) {
+
+	aclName := fmt.Sprintf("X-NFS-ACL-%s/%s", tenantName, bucketName)
+	return d.setupConfigRequest(serviceName, aclName, value)
+}
+
+func (d *NdnfsDriver) removeAclParam(serviceName string, tenantName string, bucketName string) (err error) {
+	// to delete property just set it to ""
+	return d.setUpAclParams(serviceName, tenantName, bucketName, "")
+}
+func (d *NdnfsDriver) setupConfigRequest(serviceName string, configParamName string, configParamValue string) (err error) {
+
+	log.Infof("setupConfigRequest: serviceName:%s, configParamName:%s, configParamValue:%s", serviceName, configParamName, configParamValue)
+	path := fmt.Sprintf("/service/%s/config", serviceName)
+
+	data := make(map[string]interface{})
+	data["param"] = configParamName
+	data["value"] = configParamValue
+
+	_, err = d.doNedgeRequest("PUT", path, data)
+	return err
+}
+
+func (d *NdnfsDriver) doNedgeRequest(method string, path string, data map[string]interface{}) (responseBody []byte, err error) {
+	body, err := d.Request(method, path, data)
+	if err != nil {
+		log.Error(err)
+		return body, err
+	}
+	if len(body) == 0 {
+		log.Error("NedgeResponse body is 0")
+		return body, fmt.Errorf("Fatal error %s", "NedgeResponse body is 0")
+	}
+
+	resp := make(map[string]interface{})
+	jsonerr := json.Unmarshal(body, &resp)
+	if jsonerr != nil {
+		log.Error(jsonerr)
+		return body, err
+	}
+	if resp["code"] == "EINVAL" {
+		err = fmt.Errorf("Error while handling request: %s", resp)
+	}
+	return body, err
+}
+
 func (d *NdnfsDriver) Request(method, endpoint string, data map[string]interface{}) (body []byte, err error) {
 	url := d.Endpoint + endpoint
 	log.Debug("Issuing request to NexentaEdge, endpoint: ",
@@ -180,25 +226,14 @@ func (d NdnfsDriver) Create(r *volume.CreateRequest) (err error) {
 			log.Panic(err)
 		}
 	}
-        //setup service configuration
-        if r.Options["acl"] != "" {
-            configUrl := fmt.Sprintf("service/%s/config", service)
-            aclName := fmt.Sprintf("X-NFS-ACL-%s/%s", tenant, r.Name)
-            data = make(map[string]interface{})
-            data["param"] = aclName
-            data["value"] = r.Options["acl"]
 
-            body, err = d.Request("PUT", configUrl, data)
-            resp = make(map[string]interface{})
-            jsonerr = json.Unmarshal(body, &resp)
-            if (jsonerr != nil) {
-                 log.Error(jsonerr)
-            }
-            if resp["code"] == "EINVAL" {
-                err = errors.New(fmt.Sprintf("Error while handling request: %s", resp))
-                return err
-            }
-        }
+	//setup service configuration
+	if r.Options["acl"] != "" {
+		err := d.setUpAclParams(service, tenant, r.Name, r.Options["acl"])
+		if err != nil {
+			log.Error(err)
+		}
+	}
 
 	data = make(map[string]interface{})
 	data["serve"] = filepath.Join(cluster, tenant, r.Name)
@@ -296,6 +331,10 @@ func (d NdnfsDriver) Remove(r *volume.RemoveRequest) error {
 	d.Mutex.Lock()
 	defer d.Mutex.Unlock()
 	service := d.Config.Servicename
+
+	// before unserve bucket we need to unset ACL property
+	d.removeAclParam(d.Config.Servicename, d.Config.Tenantname, r.Name)
+
 	data := make(map[string]interface{})
 	data["serve"] = filepath.Join(d.Config.Clustername, d.Config.Tenantname, r.Name)
 	url := fmt.Sprintf("service/%s/serve", service)
