@@ -184,10 +184,10 @@ func (c *Client) CreateVolume(name string, options map[string]string) (err error
 		}
 	}
 
-
+    data = make(map[string]interface{})
     data["serve"] = filepath.Join(cluster, tenant, name)
     url = fmt.Sprintf("service/%s/serve", service)
-    body, err = c.Request("PUT", url, nil)
+    body, err = c.Request("PUT", url, data)
     resp = make(map[string]interface{})
     jsonerr = json.Unmarshal(body, &resp)
     if (jsonerr != nil) {
