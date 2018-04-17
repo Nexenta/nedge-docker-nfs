@@ -238,7 +238,7 @@ func (nedge *NexentaEdgeProvider) doNedgeRequest(method string, path string, dat
 }
 
 func (nedge *NexentaEdgeProvider) Request(method, restpath string, data map[string]interface{}) (body []byte, err error) {
-	log.Debug("Issue request to Nexenta, endpoint: ", nedge.endpoint, " data: ", data, " method: ", method)
+
 	if nedge.endpoint == "" {
 		log.Panic("Endpoint is not set, unable to issue requests")
 		err = errors.New("Unable to issue json-rpc requests without specifying Endpoint")
@@ -252,6 +252,7 @@ func (nedge *NexentaEdgeProvider) Request(method, restpath string, data map[stri
 	tr := &http.Transport{}
 	client := &http.Client{Transport: tr}
 	url := nedge.endpoint + restpath
+	log.Debugf("Request to NexentaEdge [%s] %s data: %+v ", method, url, data)
 	req, err := http.NewRequest(method, url, nil)
 	if len(data) != 0 {
 		req, err = http.NewRequest(method, url, strings.NewReader(string(datajson)))
