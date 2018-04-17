@@ -11,7 +11,7 @@ import (
 	"strings"
 
 	"github.com/Nexenta/nedge-docker-nfs/ndnfs/nedgeprovider"
-	log "github.com/sirupsen/logrus"
+	log "github.com/Sirupsen/logrus"
 )
 
 const defaultMountPoint string = "/var/lib/ndnfs"
@@ -108,6 +108,12 @@ func (c *Client) DeleteVolume(name string) (err error) {
 	err = c.Nedge.UnsetServiceAclConfiguration(service, tenant, name)
 	if err != nil {
 		log.Errorf("Error removing acl parameters %+v", err)
+		return err
+	}
+
+	err = c.Nedge.UnserveService(service, cluster, tenant, name)
+	if err != nil {
+		log.Errorf("Error unserve bucket %s Error: %+v", name, err)
 		return err
 	}
 

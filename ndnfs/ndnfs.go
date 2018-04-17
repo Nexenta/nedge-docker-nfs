@@ -1,9 +1,10 @@
 package main
 
 import (
+	"os"
+
 	"github.com/Nexenta/nedge-docker-nfs/ndnfs/ndnfsapi"
 	"github.com/Nexenta/nedge-docker-nfs/ndnfs/ndnfscli"
-	"os"
 )
 
 const (
