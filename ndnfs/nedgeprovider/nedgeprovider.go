@@ -137,7 +137,7 @@ func (nedge *NexentaEdgeProvider) setServiceConfigParam(service string, paramete
 
 func (nedge *NexentaEdgeProvider) ServeService(service string, cluster string, tenant string, bucket string) (err error) {
 	path := fmt.Sprintf("service/%s/serve", service)
-	serve := fmt.Sprintf("clusters/%s/tenants/%s/buckets/%s", cluster, tenant, bucket)
+	serve := fmt.Sprintf("%s/%s/%s", cluster, tenant, bucket)
 
 	//request data
 	data := make(map[string]interface{})
