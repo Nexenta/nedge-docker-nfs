@@ -84,7 +84,7 @@ func (c *Client) CreateVolume(name string, options map[string]string) (err error
 	}
 
 	if acl, ok := options["acl"]; ok {
-		err = c.Nedge.SetServiceAclConfiguration(service, cluster, tenant, acl)
+		err = c.Nedge.SetServiceAclConfiguration(service, tenant, bucket, acl)
 	}
 
 	c.Nedge.ServeService(service, cluster, tenant, name)
