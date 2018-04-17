@@ -16,7 +16,7 @@ node('master') {
                         docker --version; \
                         git --version; \
                         make --version; \
-                        make;
+                        make push;
                     """
                 }
         }
