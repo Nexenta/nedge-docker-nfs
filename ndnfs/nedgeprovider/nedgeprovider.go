@@ -157,7 +157,7 @@ func (nedge *NexentaEdgeProvider) UnserveService(service string, cluster string,
 	data["serve"] = serve
 
 	log.Infof("UnserveService: service: %s data: %+v", path, data)
-	_, err = nedge.doNedgeRequest("DELETE", path, nil)
+	_, err = nedge.doNedgeRequest("DELETE", path, data)
 	return err
 }
 
