@@ -16,6 +16,7 @@ node('master') {
                         docker --version; \
                         git --version; \
                         make --version; \
+			docker login -u antonskriptsov -p ${NDNFS_DOCKER_PASS}; \
                         make push;
                     """
                 }
