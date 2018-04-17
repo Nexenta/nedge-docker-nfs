@@ -51,7 +51,7 @@ You can find instructions and steps on the Docker website here:
 After the above Prerequisites are met, use the Makefile:
 
   ```
-  git clone -b stable/v13 --single-branch https://github.com/Nexenta/nedge-docker-nfs.git $GOPATH/src/github.com/Nexenta/nedge-docker-nfs
+  git clone -b refactored-plugin --single-branch https://github.com/Nexenta/nedge-docker-nfs.git $GOPATH/src/github.com/Nexenta/nedge-docker-nfs
   cd $GOPATH/src/github.com/Nexenta/nedge-docker-nfs
   make build
   ```
