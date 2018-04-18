@@ -10,15 +10,21 @@ node('master') {
             docker
                 .image('solutions-team-jenkins-agent-ubuntu')
                 .inside('--volumes-from solutions-team-jenkins-master') {
-                    sh """
-                        pwd; \
-                        ls -lha; \
-                        docker --version; \
-                        git --version; \
-                        make --version; \
-			docker login -u antonskriptsov -p ${NDNFS_DOCKER_PASS}; \
-                        make push;
-                    """
+                    withCredentials([usernamePassword(
+                        credentialsId: 'hub.docker-nedgeui',
+                        passwordVariable: 'DOCKER_PASS',
+                        usernameVariable: 'DOCKER_USER'
+                    )]) {
+                        sh """
+                            pwd; \
+                            ls -lha; \
+                            docker --version; \
+                            git --version; \
+                            make --version; \
+			    docker login -u ${DOCKER_USER} -p ${DOCKER_PASS}; \
+                            make push;
+                        """
+                    }
                 }
         }
     }
