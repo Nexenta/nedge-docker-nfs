@@ -343,7 +343,10 @@ func (c *Client) ListBuckets(cluster string, tenant string) (buckets []string, e
 		return buckets, err
 	}
 
-	buckets = r["response"].([]string)
+	for _, val := range r["response"].([]interface{}) {
+		buckets = append(buckets, val.(string))
+	}
+
 	log.Debugf("Bucket list for %s/%s : %+v", cluster, tenant, buckets)
 	return buckets, err
 }
