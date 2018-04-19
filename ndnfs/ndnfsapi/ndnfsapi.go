@@ -320,12 +320,14 @@ func (c *Client) IsBucketExist(cluster string, tenant string, bucket string) boo
 	if err != nil {
 		return false
 	}
-	log.Debugf("No buckets found for %s/%s", cluster, tenant)
+
 	for _, value := range buckets {
 		if bucket == value {
+			log.Debugf("Bucket %s/%s/%s already exist", cluster, tenant, bucket)
 			return true
 		}
 	}
+	log.Debugf("No bucket %s/%s/%s found", cluster, tenant, bucket)
 	return false
 }
 
