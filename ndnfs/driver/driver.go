@@ -1,23 +1,24 @@
 package driver
 
 import (
-	"fmt"
-	log "github.com/Sirupsen/logrus"
-	"sync"
-	"github.com/docker/go-plugins-helpers/volume"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
-	"os/exec"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
-	"strings"
 	"strconv"
+	"strings"
+	"sync"
+
+	log "github.com/Sirupsen/logrus"
+	"github.com/docker/go-plugins-helpers/volume"
 )
 
-const defaultChunkSize int = 1048576;
+const defaultChunkSize int = 1048576
 const defaultMountPoint string = "/var/lib/ndnfs"
 
 var (
@@ -25,28 +26,28 @@ var (
 )
 
 type NdnfsDriver struct {
-	Scope		string
-	DefaultVolSz	int64
-	Mutex		*sync.Mutex
-	Endpoint    string
-	Config      *Config
+	Scope        string
+	DefaultVolSz int64
+	Mutex        *sync.Mutex
+	Endpoint     string
+	Config       *Config
 }
 
 type Config struct {
 	Name        string
 	Nedgerest   string
 	Nedgeport   int16
-	Nedgedata	string
+	Nedgedata   string
 	Clustername string
 	Tenantname  string
 	Chunksize   int
-	Username	string
-	Password	string
+	Username    string
+	Password    string
 	Mountpoint  string
 	Servicename string
 }
 
-func ReadParseConfig(fname string) (Config) {
+func ReadParseConfig(fname string) Config {
 	content, err := ioutil.ReadFile(fname)
 	if err != nil {
 		log.Fatal(DN, "Error reading config file: ", fname, " error: ", err)
@@ -69,11 +70,11 @@ func DriverAlloc(cfgFile string) NdnfsDriver {
 	}
 	log.Info(DN, " config: ", conf)
 	d := NdnfsDriver{
-		Scope:			"local",
-		DefaultVolSz:	1024,
-		Mutex:          &sync.Mutex{},
-		Endpoint:       fmt.Sprintf("http://%s:%d/", conf.Nedgerest, conf.Nedgeport),
-		Config:         &conf,
+		Scope:        "local",
+		DefaultVolSz: 1024,
+		Mutex:        &sync.Mutex{},
+		Endpoint:     fmt.Sprintf("http://%s:%d/", conf.Nedgerest, conf.Nedgeport),
+		Config:       &conf,
 	}
 	return d
 }
@@ -133,7 +134,7 @@ func (d *NdnfsDriver) Request(method, endpoint string, data map[string]interface
 		log.Fatal(err.Error())
 	}
 	datajson, err := json.Marshal(data)
-	if (err != nil) {
+	if err != nil {
 		log.Fatal(err)
 	}
 
@@ -144,9 +145,9 @@ func (d *NdnfsDriver) Request(method, endpoint string, data map[string]interface
 		req, err = http.NewRequest(method, url, strings.NewReader(string(datajson)))
 	}
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Basic " + basicAuth(d.Config.Username, d.Config.Password))
+	req.Header.Set("Authorization", "Basic "+basicAuth(d.Config.Username, d.Config.Password))
 	resp, err := client.Do(req)
-        log.Debug("Response :", resp, " and error: ", err)
+	log.Debug("Response :", resp, " and error: ", err)
 	if err != nil {
 		log.Fatal("Error while handling request ", err)
 	}
@@ -154,7 +155,7 @@ func (d *NdnfsDriver) Request(method, endpoint string, data map[string]interface
 	log.Debug("Got response, code: ", resp.StatusCode, ", body: ", string(body))
 	d.checkError(resp)
 	defer resp.Body.Close()
-	if (err != nil) {
+	if err != nil {
 		log.Fatal(err)
 	}
 	return body, err
@@ -209,21 +210,24 @@ func (d NdnfsDriver) Create(r *volume.CreateRequest) (err error) {
 	} else {
 		service = r.Options["service"]
 	}
-	data["bucketName"] = r.Name
-	data["optionsObject"] = map[string]int{"ccow-chunkmap-chunk-size": chunkSizeInt}
-	url := fmt.Sprintf("clusters/%s/tenants/%s/buckets", cluster, tenant)
 
-	body, err := d.Request("POST", url, data)
-	resp := make(map[string]interface{})
-        jsonerr := json.Unmarshal(body, &resp)
-	if len(body) > 0  {
-		if (jsonerr != nil) {
-			log.Panic(jsonerr)
-			return err
-		}
-		if (resp["code"] != nil) && (resp["code"] != "RT_ERR_EXISTS") {
-			err = errors.New(fmt.Sprintf("Error while handling request: %s", resp))
-			log.Panic(err)
+	if !d.IsBucketExist(cluster, tenant, r.Name) {
+		data["bucketName"] = r.Name
+		data["optionsObject"] = map[string]int{"ccow-chunkmap-chunk-size": chunkSizeInt}
+		url := fmt.Sprintf("clusters/%s/tenants/%s/buckets", cluster, tenant)
+
+		body, err := d.Request("POST", url, data)
+		resp := make(map[string]interface{})
+		jsonerr := json.Unmarshal(body, &resp)
+		if len(body) > 0 {
+			if jsonerr != nil {
+				log.Panic(jsonerr)
+				return err
+			}
+			if (resp["code"] != nil) && (resp["code"] != "RT_ERR_EXISTS") {
+				err = errors.New(fmt.Sprintf("Error while handling request: %s", resp))
+				log.Panic(err)
+			}
 		}
 	}
 
@@ -237,19 +241,19 @@ func (d NdnfsDriver) Create(r *volume.CreateRequest) (err error) {
 
 	data = make(map[string]interface{})
 	data["serve"] = filepath.Join(cluster, tenant, r.Name)
-	url = fmt.Sprintf("service/%s/serve", service)
-	body, err = d.Request("PUT", url, data)
-	resp = make(map[string]interface{})
-	jsonerr = json.Unmarshal(body, &resp)
-        if len(body) > 0 {
-	    if (jsonerr != nil) {
-		log.Error(jsonerr)
-		    return err
-	    }
-	    if resp["code"] == "EINVAL" {
-		err = errors.New(fmt.Sprintf("Error while handling request: %s", resp))
-		return err
-	    }
+	url := fmt.Sprintf("service/%s/serve", service)
+	body, err := d.Request("PUT", url, data)
+	resp := make(map[string]interface{})
+	jsonerr := json.Unmarshal(body, &resp)
+	if len(body) > 0 {
+		if jsonerr != nil {
+			log.Error(jsonerr)
+			return err
+		}
+		if resp["code"] == "EINVAL" {
+			err = errors.New(fmt.Sprintf("Error while handling request: %s", resp))
+			return err
+		}
 	}
 	return err
 }
@@ -275,6 +279,45 @@ func (d NdnfsDriver) Get(r *volume.GetRequest) (*volume.GetResponse, error) {
 
 	log.Debug("Device mountpoint is: ", mnt)
 	return &volume.GetResponse{Volume: &volume.Volume{Name: r.Name, Mountpoint: mnt}}, err
+}
+
+func (d NdnfsDriver) IsBucketExist(cluster string, tenant string, bucket string) bool {
+	log.Debugf("Check bucket existance for %s/%s/%s", cluster, tenant, bucket)
+	buckets, err := d.ListBuckets(cluster, tenant)
+	if err != nil {
+		return false
+	}
+
+	for _, value := range buckets {
+		if bucket == value {
+			log.Debugf("Bucket %s/%s/%s already exist", cluster, tenant, bucket)
+			return true
+		}
+	}
+	log.Debugf("No bucket %s/%s/%s found", cluster, tenant, bucket)
+	return false
+}
+
+func (d NdnfsDriver) ListBuckets(cluster string, tenant string) (buckets []string, err error) {
+	url := fmt.Sprintf("clusters/%s/tenants/%s/buckets", cluster, tenant)
+	body, err := d.Request("GET", url, nil)
+
+	r := make(map[string]interface{})
+	jsonerr := json.Unmarshal(body, &r)
+	if jsonerr != nil {
+		log.Error(jsonerr)
+	}
+	if r["response"] == nil {
+		log.Debugf("No buckets found for %s/%s", cluster, tenant)
+		return buckets, err
+	}
+
+	for _, val := range r["response"].([]interface{}) {
+		buckets = append(buckets, val.(string))
+	}
+
+	log.Debugf("Bucket list for %s/%s : %+v", cluster, tenant, buckets)
+	return buckets, err
 }
 
 func (d NdnfsDriver) List() (*volume.ListResponse, error) {
@@ -304,7 +347,7 @@ func (d NdnfsDriver) Mount(r *volume.MountRequest) (*volume.MountResponse, error
 	mnt = filepath.Join(d.Config.Mountpoint, r.Name)
 	log.Debug(DN, "Creating mountpoint folder: ", mnt)
 	if out, err := exec.Command("mkdir", "-p", mnt).CombinedOutput(); err != nil {
-	    log.Info("Error running mkdir command: ", err, "{", string(out), "}")
+		log.Info("Error running mkdir command: ", err, "{", string(out), "}")
 	}
 	log.Debug(DN, "Checking if volume is mounted ", r.Name)
 	out, err := exec.Command("mount").CombinedOutput()
@@ -343,13 +386,11 @@ func (d NdnfsDriver) Remove(r *volume.RemoveRequest) error {
 		log.Info("Error while handling request", err)
 	}
 
-	url = fmt.Sprintf("clusters/%s/tenants/%s/buckets/%s", d.Config.Clustername, d.Config.Tenantname, r.Name)
-	_, err = d.Request("DELETE", url, nil)
-
-	mnt := filepath.Join(d.Config.Mountpoint, r.Name)
-	if out, err := exec.Command("rm", "-rf", mnt).CombinedOutput(); err != nil {
-		log.Info("Error running rm command: ", err, "{", string(out), "}")
+	if d.IsBucketExist(d.Config.Clustername, d.Config.Tenantname, r.Name) {
+		url = fmt.Sprintf("clusters/%s/tenants/%s/buckets/%s", d.Config.Clustername, d.Config.Tenantname, r.Name)
+		_, err = d.Request("DELETE", url, nil)
 	}
+
 	return err
 }
 
@@ -357,6 +398,12 @@ func (d NdnfsDriver) Unmount(r *volume.UnmountRequest) (err error) {
 	log.Info(DN, "Unmount volume: ", r.Name)
 	d.Mutex.Lock()
 	defer d.Mutex.Unlock()
+
+	mnt := filepath.Join(d.Config.Mountpoint, r.Name)
+	if out, err := exec.Command("rm", "-rf", mnt).CombinedOutput(); err != nil {
+		log.Info("Error running rm command: ", err, "{", string(out), "}")
+	}
+
 	nfs := fmt.Sprintf("%s:/%s/%s", d.Config.Nedgedata, d.Config.Tenantname, r.Name)
 	if out, err := exec.Command("umount", nfs).CombinedOutput(); err != nil {
 		log.Error("Error running umount command: ", err, "{", string(out), "}")
@@ -376,7 +423,7 @@ func (d NdnfsDriver) GetNfsList() (nfsList []string, err error) {
 
 	r := make(map[string]map[string]map[string]interface{})
 	jsonerr := json.Unmarshal(body, &r)
-	if (jsonerr != nil) {
+	if jsonerr != nil {
 		log.Error(jsonerr)
 	}
 	if r["response"]["data"]["X-Service-Objects"] == nil {
@@ -386,18 +433,18 @@ func (d NdnfsDriver) GetNfsList() (nfsList []string, err error) {
 	strList := r["response"]["data"]["X-Service-Objects"].(string)
 	err = json.Unmarshal([]byte(strList), &exports)
 	if err != nil {
-	    log.Fatal(err)
+		log.Fatal(err)
 	}
-	for i, v := range(exports) {
-            if len(strings.Split(v, ",")) > 1 {
-	        var service = strings.Split(v, ",")[1]
-                var parts = strings.Split(service, "@")
-                if strings.HasPrefix(parts[1], fmt.Sprintf("%s/%s", d.Config.Clustername, d.Config.Tenantname)) {
-                    nfsList = append(nfsList, parts[0])
-	        }
-            } else {
-		nfsList[i] = v
-	    }
+	for i, v := range exports {
+		if len(strings.Split(v, ",")) > 1 {
+			var service = strings.Split(v, ",")[1]
+			var parts = strings.Split(service, "@")
+			if strings.HasPrefix(parts[1], fmt.Sprintf("%s/%s", d.Config.Clustername, d.Config.Tenantname)) {
+				nfsList = append(nfsList, parts[0])
+			}
+		} else {
+			nfsList[i] = v
+		}
 	}
 	return nfsList, err
 }
@@ -407,7 +454,7 @@ func (d NdnfsDriver) ListVolumes() (vmap map[string]string, err error) {
 	nfsList, err := d.GetNfsList()
 	vmap = make(map[string]string)
 	for v := range nfsList {
-		vname := strings.Split(nfsList[v], "/")[len(strings.Split(nfsList[v], "/")) - 1]
+		vname := strings.Split(nfsList[v], "/")[len(strings.Split(nfsList[v], "/"))-1]
 		vmap[vname] = fmt.Sprintf("%s/%s", d.Config.Mountpoint, vname)
 	}
 	log.Debug(vmap)
