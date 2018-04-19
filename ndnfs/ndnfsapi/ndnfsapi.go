@@ -224,6 +224,11 @@ func (c *Client) DeleteVolume(name string) (err error) {
 		log.Panic("Error while handling request", err)
 	}
 
+	if c.IsBucketExist(c.Config.Clustername, c.Config.Tenantname, name) {
+		url = fmt.Sprintf("clusters/%s/tenants/%s/buckets/%s", c.Config.Clustername, c.Config.Tenantname, name)
+		_, err = c.Request("DELETE", url, nil)
+	}
+
 	return err
 }
 
