@@ -102,6 +102,20 @@ func (d *NdnfsDriver) setupConfigRequest(serviceName string, configParamName str
 	return err
 }
 
+func (d *NdnfsDriver) SetBucketQuota(cluster string, tenant string, bucket string, quota string, quotaCount string) error {
+	path := fmt.Sprintf("clusters/%s/tenants/%s/buckets/%s/quota", cluster, tenant, bucket)
+
+	data := make(map[string]interface{})
+	data["quota"] = quota
+	if quotaCount != "" {
+		data["quota_count"] = quotaCount
+	}
+
+	log.Infof("SetBucketQuota: path: %s ", path)
+	_, err := d.doNedgeRequest("PUT", path, data)
+	return err
+}
+
 func (d *NdnfsDriver) doNedgeRequest(method string, path string, data map[string]interface{}) (responseBody []byte, err error) {
 	body, err := d.Request(method, path, data)
 	if err != nil {
@@ -230,6 +244,16 @@ func (d NdnfsDriver) Create(r *volume.CreateRequest) (err error) {
 			}
 		}
 	}
+
+	// setup quota configuration
+	if quota, ok := r.Options["size"]; ok {
+		err = d.SetBucketQuota(cluster, tenant, r.Name, quota, r.Options["quota_count"])
+		if err != nil {
+			log.Error(err)
+			return err
+		}
+	}
+
 
 	//setup service configuration
 	if r.Options["acl"] != "" {
