@@ -2,10 +2,11 @@ package daemon
 
 import (
 	"fmt"
-	log "github.com/Sirupsen/logrus"
 	"sync"
-	"github.com/docker/go-plugins-helpers/volume"
+
 	"github.com/Nexenta/nedge-docker-nfs/ndnfs/ndnfsapi"
+	log "github.com/Sirupsen/logrus"
+	"github.com/docker/go-plugins-helpers/volume"
 )
 
 var (
@@ -13,20 +14,20 @@ var (
 )
 
 type NdnfsDriver struct {
-	Scope		string
-	DefaultVolSz	int64
-	Client		*ndnfsapi.Client
-	Mutex		*sync.Mutex
+	Scope        string
+	DefaultVolSz int64
+	Client       *ndnfsapi.Client
+	Mutex        *sync.Mutex
 }
 
 func DriverAlloc(cfgFile string) NdnfsDriver {
 
 	client, _ := ndnfsapi.ClientAlloc(cfgFile)
 	d := NdnfsDriver{
-		Scope:			"local",
-		DefaultVolSz:	1024,
-		Client:         client,
-		Mutex:          &sync.Mutex{},
+		Scope:        "local",
+		DefaultVolSz: 1024,
+		Client:       client,
+		Mutex:        &sync.Mutex{},
 	}
 	return d
 }

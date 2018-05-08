@@ -11,7 +11,7 @@ import (
 	"strings"
 
 	"github.com/Nexenta/nedge-docker-nfs/ndnfs/nedgeprovider"
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 )
 
 const defaultMountPoint string = "/var/lib/ndnfs"
@@ -21,7 +21,7 @@ var (
 )
 
 type Client struct {
-	Nedge  nedgeprovider.INexentaEdge
+	Nedge  nedgeprovider.INexentaEdgeProvider
 	Config *Config
 }
 
@@ -83,8 +83,20 @@ func (c *Client) CreateVolume(name string, options map[string]string) (err error
 		return err
 	}
 
+	if quota, ok := options["size"]; ok {
+		err = c.Nedge.SetBucketQuota(cluster, tenant, name, quota, options["quota_count"])
+		if err != nil {
+			log.Error(err)
+			return err
+		}
+	}
+
 	if acl, ok := options["acl"]; ok {
 		err = c.Nedge.SetServiceAclConfiguration(service, tenant, name, acl)
+		if err != nil {
+			log.Error(err)
+			return err
+		}
 	}
 
 	c.Nedge.ServeService(service, cluster, tenant, name)
