@@ -180,6 +180,15 @@ func (c *Client) CreateVolume(name string, options map[string]string) (err error
 		}
 	}
 
+	//setup bucket quota
+	if quota, ok := options["size"]; ok {
+		err = c.SetBucketQuota(cluster, tenant, name, quota, options["quota_count"])
+		if err != nil {
+			log.Error(err)
+			return err
+		}
+	}
+
 	//setup service configuration
 	if options["acl"] != "" {
 		err := c.setUpAclParams(service, tenant, name, options["acl"])
@@ -242,6 +251,20 @@ func (c *Client) removeAclParam(serviceName string, tenantName string, bucketNam
 
 	aclName := fmt.Sprintf("X-NFS-ACL-%s/%s", tenantName, bucketName)
 	return c.setupConfigRequest(serviceName, aclName, "")
+}
+
+func (c *Client) SetBucketQuota(cluster string, tenant string, bucket string, quota string, quotaCount string) error {
+	path := fmt.Sprintf("clusters/%s/tenants/%s/buckets/%s/quota", cluster, tenant, bucket)
+
+	data := make(map[string]interface{})
+	data["quota"] = quota
+	if quotaCount != "" {
+		data["quota_count"] = quotaCount
+	}
+
+	log.Infof("SetBucketQuota: path: %s ", path)
+	_, err := c.Request("PUT", path, data)
+	return err
 }
 
 func (c *Client) setupConfigRequest(serviceName string, configParamName string, configParamValue string) (err error) {
