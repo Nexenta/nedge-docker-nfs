@@ -61,10 +61,9 @@ type NedgeService struct {
 }
 
 type NedgeNFSVolume struct {
-	VolumeID   string
-	Path       string
-	Share      string
-	Mountpoint string
+	VolumeID string
+	Path     string
+	Share    string
 }
 
 func ParseVolumeID(path string) (resultObject VolumeID, err error) {
@@ -244,7 +243,11 @@ func (d NdnfsDriver) Create(r *volume.CreateRequest) (err error) {
 	d.Mutex.Lock()
 	defer d.Mutex.Unlock()
 
-	var cluster, tenant, service string
+	volID, err := ParseVolumeID(r.Name)
+	if err != nil {
+		return err
+	}
+
 	var chunkSizeInt int
 	if r.Options["chunksize"] != "" {
 		chunkSizeInt, _ = strconv.Atoi(r.Options["chunksize"])
@@ -258,23 +261,11 @@ func (d NdnfsDriver) Create(r *volume.CreateRequest) (err error) {
 	}
 
 	data := make(map[string]interface{})
-	cluster, tenant = d.Config.Clustername, d.Config.Tenantname
 
-	// check service option
-	if r.Options["service"] != "" {
-		service = r.Options["service"]
-	} else {
-		if d.Config.Servicename == "" {
-			err = errors.New("No service option!. Provide service option or specify 'servicename' key:value in ndnfs.json file")
-			return err
-		}
-		service = d.Config.Servicename
-	}
-
-	if !d.IsBucketExist(cluster, tenant, r.Name) {
-		data["bucketName"] = r.Name
+	if !d.IsBucketExist(volID.Cluster, volID.Tenant, volID.Bucket) {
+		data["bucketName"] = volID.Bucket
 		data["optionsObject"] = map[string]int{"ccow-chunkmap-chunk-size": chunkSizeInt}
-		url := fmt.Sprintf("clusters/%s/tenants/%s/buckets", cluster, tenant)
+		url := fmt.Sprintf("clusters/%s/tenants/%s/buckets", volID.Cluster, volID.Tenant)
 
 		body, err := d.Request("POST", url, data)
 		resp := make(map[string]interface{})
@@ -293,7 +284,7 @@ func (d NdnfsDriver) Create(r *volume.CreateRequest) (err error) {
 
 	// setup quota configuration
 	if quota, ok := r.Options["size"]; ok {
-		err = d.SetBucketQuota(cluster, tenant, r.Name, quota, r.Options["quota_count"])
+		err = d.SetBucketQuota(volID.Cluster, volID.Tenant, volID.Bucket, quota, r.Options["quota_count"])
 		if err != nil {
 			log.Error(err)
 			return err
@@ -302,15 +293,15 @@ func (d NdnfsDriver) Create(r *volume.CreateRequest) (err error) {
 
 	//setup service configuration
 	if r.Options["acl"] != "" {
-		err := d.setUpAclParams(service, tenant, r.Name, r.Options["acl"])
+		err := d.setUpAclParams(volID.Service, volID.Tenant, volID.Bucket, r.Options["acl"])
 		if err != nil {
 			log.Error(err)
 		}
 	}
 
 	data = make(map[string]interface{})
-	data["serve"] = filepath.Join(cluster, tenant, r.Name)
-	url := fmt.Sprintf("service/%s/serve", service)
+	data["serve"] = filepath.Join(volID.Cluster, volID.Tenant, volID.Bucket)
+	url := fmt.Sprintf("service/%s/serve", volID.Service)
 	body, err := d.Request("PUT", url, data)
 	resp := make(map[string]interface{})
 	jsonerr := json.Unmarshal(body, &resp)
@@ -366,7 +357,7 @@ func (d NdnfsDriver) GetVolumeByID(volumeID string) (nfsVolume NedgeNFSVolume, m
 			}
 		}
 	}
-	return nfsVolume, mountpoint, errors.New("Can't find NfsVolume by ID:" + volumeID)
+	return nfsVolume, mountpoint, errors.New("Can't find volume by ID:" + volumeID + "\n")
 }
 
 func (d NdnfsDriver) IsBucketExist(cluster string, tenant string, bucket string) bool {
@@ -431,9 +422,21 @@ func (d NdnfsDriver) Mount(r *volume.MountRequest) (*volume.MountResponse, error
 	var mnt string
 	var err error
 
-	nfs := fmt.Sprintf("%s:/%s/%s", d.Config.Nedgedata, d.Config.Tenantname, r.Name)
-	mnt = filepath.Join(d.Config.Mountpoint, r.Name)
-	log.Debug(DN, "Creating mountpoint folder: ", mnt)
+	volID, err := ParseVolumeID(r.Name)
+	if err != nil {
+		return nil, err
+	}
+
+	// no need mountpoint yet
+	nfsVolume, _, err := d.GetVolumeByID(r.Name)
+	if err != nil {
+		return nil, err
+	}
+
+	//nfs := fmt.Sprintf("%s:/%s/%s", d.Config.Nedgedata, volID.Tenant, volID.Bucket)
+	nfs := fmt.Sprintf("%s:%s", d.Config.Nedgedata, nfsVolume.Share)
+	mnt = filepath.Join(d.Config.Mountpoint, volID.GetObjectPath())
+	log.Infof(DN, "Creating mountpoint folder:%s to remote share %s ", mnt, nfs)
 	if out, err := exec.Command("mkdir", "-p", mnt).CombinedOutput(); err != nil {
 		log.Info("Error running mkdir command: ", err, "{", string(out), "}")
 	}
@@ -453,7 +456,7 @@ func (d NdnfsDriver) Mount(r *volume.MountRequest) (*volume.MountResponse, error
 func (d NdnfsDriver) Path(r *volume.PathRequest) (*volume.PathResponse, error) {
 	log.Info(DN, "Path volume: ", r.Name)
 	var err error
-	mnt := fmt.Sprintf("%s%s", d.Config.Mountpoint, r.Name)
+	mnt := fmt.Sprintf("%s/%s", d.Config.Mountpoint, r.Name)
 	return &volume.PathResponse{Mountpoint: mnt}, err
 }
 
@@ -461,21 +464,31 @@ func (d NdnfsDriver) Remove(r *volume.RemoveRequest) error {
 	log.Info(DN, "Remove volume: ", r.Name)
 	d.Mutex.Lock()
 	defer d.Mutex.Unlock()
-	service := d.Config.Servicename
+
+	volID, err := ParseVolumeID(r.Name)
+	if err != nil {
+		return err
+	}
+
+	// no need mountpoint yet
+	_, _, err = d.GetVolumeByID(r.Name)
+	if err != nil {
+		return err
+	}
 
 	// before unserve bucket we need to unset ACL property
-	d.removeAclParam(d.Config.Servicename, d.Config.Tenantname, r.Name)
+	d.removeAclParam(volID.Service, volID.Tenant, volID.Bucket)
 
 	data := make(map[string]interface{})
-	data["serve"] = filepath.Join(d.Config.Clustername, d.Config.Tenantname, r.Name)
-	url := fmt.Sprintf("service/%s/serve", service)
-	_, err := d.Request("DELETE", url, data)
+	data["serve"] = filepath.Join(volID.Cluster, volID.Tenant, volID.Bucket)
+	url := fmt.Sprintf("service/%s/serve", volID.Service)
+	_, err = d.Request("DELETE", url, data)
 	if err != nil {
 		log.Info("Error while handling request", err)
 	}
 
-	if d.IsBucketExist(d.Config.Clustername, d.Config.Tenantname, r.Name) {
-		url = fmt.Sprintf("clusters/%s/tenants/%s/buckets/%s", d.Config.Clustername, d.Config.Tenantname, r.Name)
+	if d.IsBucketExist(volID.Cluster, volID.Tenant, volID.Bucket) {
+		url = fmt.Sprintf("clusters/%s/tenants/%s/buckets/%s", volID.Cluster, volID.Tenant, volID.Bucket)
 		_, err = d.Request("DELETE", url, nil)
 	}
 
@@ -487,12 +500,23 @@ func (d NdnfsDriver) Unmount(r *volume.UnmountRequest) (err error) {
 	d.Mutex.Lock()
 	defer d.Mutex.Unlock()
 
-	mnt := filepath.Join(d.Config.Mountpoint, r.Name)
+	volID, err := ParseVolumeID(r.Name)
+	if err != nil {
+		return err
+	}
+
+	// no need mountpoint yet
+	nfsVolume, _, err := d.GetVolumeByID(r.Name)
+	if err != nil {
+		return err
+	}
+
+	mnt := filepath.Join(d.Config.Mountpoint, volID.GetObjectPath())
 	if out, err := exec.Command("rm", "-rf", mnt).CombinedOutput(); err != nil {
 		log.Info("Error running rm command: ", err, "{", string(out), "}")
 	}
 
-	nfs := fmt.Sprintf("%s:/%s/%s", d.Config.Nedgedata, d.Config.Tenantname, r.Name)
+	nfs := fmt.Sprintf("%s:%s", d.Config.Nedgedata, nfsVolume.Share)
 	if out, err := exec.Command("umount", nfs).CombinedOutput(); err != nil {
 		log.Error("Error running umount command: ", err, "{", string(out), "}")
 	}
@@ -551,7 +575,7 @@ func (d NdnfsDriver) ListVolumes() (vmap map[string]string, err error) {
 
 	log.Infof("Services: %+v", services)
 	for _, service := range services {
-		if service.ServiceType == "nfs" && service.Status == "enabled" && service.Name == "nfs01" {
+		if service.ServiceType == "nfs" && service.Status == "enabled" {
 			volumes, err := d.GetNfsVolumes(service.Name)
 			if err != nil {
 				log.Fatal("ListVolumes failed Error: ", err)
