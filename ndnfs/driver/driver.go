@@ -247,6 +247,7 @@ func (d NdnfsDriver) Create(r *volume.CreateRequest) (err error) {
 	if err != nil {
 		return err
 	}
+	log.Infof("Parsed volume: %+v", volID)
 
 	var chunkSizeInt int
 	if r.Options["chunksize"] != "" {
@@ -262,13 +263,16 @@ func (d NdnfsDriver) Create(r *volume.CreateRequest) (err error) {
 
 	data := make(map[string]interface{})
 
+	log.Info("Creating bucket")
 	if !d.IsBucketExist(volID.Cluster, volID.Tenant, volID.Bucket) {
+		log.Info("Bucket doesnt exist")
 		data["bucketName"] = volID.Bucket
 		data["optionsObject"] = map[string]int{"ccow-chunkmap-chunk-size": chunkSizeInt}
 		url := fmt.Sprintf("clusters/%s/tenants/%s/buckets", volID.Cluster, volID.Tenant)
 
 		body, err := d.Request("POST", url, data)
 		resp := make(map[string]interface{})
+		log.Info("Bucket creation response: %+v", resp)
 		jsonerr := json.Unmarshal(body, &resp)
 		if len(body) > 0 {
 			if jsonerr != nil {
