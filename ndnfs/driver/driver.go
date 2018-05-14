@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
@@ -45,6 +44,52 @@ type Config struct {
 	Password    string
 	Mountpoint  string
 	Servicename string
+}
+
+type VolumeID struct {
+	Cluster string
+	Tenant  string
+	Bucket  string
+	Service string
+}
+
+type NedgeService struct {
+	Name        string
+	ServiceType string
+	Status      string
+	Network     []string
+}
+
+type NedgeNFSVolume struct {
+	VolumeID   string
+	Path       string
+	Share      string
+	Mountpoint string
+}
+
+func ParseVolumeID(path string) (resultObject VolumeID, err error) {
+	parts := strings.Split(path, ":")
+	if len(parts) != 2 {
+		err := errors.New("Wrong format of object path. Path must be in format service:/cluster/tenant/bucket")
+		return resultObject, err
+	}
+
+	pathObjects := strings.Split(parts[1], "/")
+	if len(pathObjects) != 3 {
+		err := errors.New("Wrong format of object path. Path must be in format service:/cluster/tenant/bucket")
+		return resultObject, err
+	}
+
+	resultObject.Service = parts[0]
+	resultObject.Cluster = pathObjects[0]
+	resultObject.Tenant = pathObjects[1]
+	resultObject.Bucket = pathObjects[2]
+
+	return resultObject, err
+}
+
+func (path *VolumeID) GetObjectPath() string {
+	return fmt.Sprintf("%s:%s/%s/%s", path.Service, path.Cluster, path.Tenant, path.Bucket)
 }
 
 func ReadParseConfig(fname string) Config {
@@ -215,14 +260,15 @@ func (d NdnfsDriver) Create(r *volume.CreateRequest) (err error) {
 	data := make(map[string]interface{})
 	cluster, tenant = d.Config.Clustername, d.Config.Tenantname
 
-	if r.Options["service"] == "" {
-		if os.Getenv("CCOW_SVCNAME") != "" {
-			service = os.Getenv("CCOW_SVCNAME")
-		} else {
-			service = d.Config.Servicename
-		}
-	} else {
+	// check service option
+	if r.Options["service"] != "" {
 		service = r.Options["service"]
+	} else {
+		if d.Config.Servicename == "" {
+			err = errors.New("No service option!. Provide service option or specify 'servicename' key:value in ndnfs.json file")
+			return err
+		}
+		service = d.Config.Servicename
 	}
 
 	if !d.IsBucketExist(cluster, tenant, r.Name) {
@@ -254,7 +300,6 @@ func (d NdnfsDriver) Create(r *volume.CreateRequest) (err error) {
 		}
 	}
 
-
 	//setup service configuration
 	if r.Options["acl"] != "" {
 		err := d.setUpAclParams(service, tenant, r.Name, r.Options["acl"])
@@ -284,25 +329,42 @@ func (d NdnfsDriver) Create(r *volume.CreateRequest) (err error) {
 
 func (d NdnfsDriver) Get(r *volume.GetRequest) (*volume.GetResponse, error) {
 	log.Debug(DN, "Get volume: ", r.Name)
-	var mnt string
-	nfsMap, err := d.ListVolumes()
+	volumeInstance, mountpoint, err := d.GetVolumeByID(r.Name)
 	if err != nil {
-		log.Info("Volume with name ", r.Name, " not found")
+		log.Info("Volume with ID ", r.Name, " not found")
 		return &volume.GetResponse{}, err
 	}
 
-	for k, v := range nfsMap {
-		if k == r.Name {
-			mnt = v
-			break
+	log.Debugf("Device %s mountpoint is %s\n", volumeInstance.VolumeID, mountpoint)
+	return &volume.GetResponse{Volume: &volume.Volume{Name: volumeInstance.VolumeID, Mountpoint: mountpoint}}, err
+}
+
+func (d NdnfsDriver) GetVolumeByID(volumeID string) (nfsVolume NedgeNFSVolume, mountpoint string, err error) {
+	log.Debug(DN, "Get volume by ID : ", volumeID)
+
+	volID, err := ParseVolumeID(volumeID)
+	if err != nil {
+		return nfsVolume, mountpoint, err
+	}
+
+	service, err := d.GetServiceInstance(volID.Service)
+	if err != nil {
+		return nfsVolume, mountpoint, err
+	}
+
+	nfsMap, err := d.GetNfsVolumes(volID.Service)
+	if err != nil {
+		log.Info("Can't get  GetNfsVolumes")
+		return nfsVolume, mountpoint, err
+	}
+
+	for _, v := range nfsMap {
+		if v.VolumeID == volumeID {
+			mountpoint = fmt.Sprintf("%s:%s", service.Network[0], v.Share)
+			return v, mountpoint, err
 		}
 	}
-	if mnt == "" {
-		return &volume.GetResponse{}, err
-	}
-
-	log.Debug("Device mountpoint is: ", mnt)
-	return &volume.GetResponse{Volume: &volume.Volume{Name: r.Name, Mountpoint: mnt}}, err
+	return nfsVolume, mountpoint, errors.New("Can't find NfsVolume by ID:" + volumeID)
 }
 
 func (d NdnfsDriver) IsBucketExist(cluster string, tenant string, bucket string) bool {
@@ -435,6 +497,7 @@ func (d NdnfsDriver) Unmount(r *volume.UnmountRequest) (err error) {
 	return err
 }
 
+/*
 func (d NdnfsDriver) GetNfsList() (nfsList []string, err error) {
 	var body []byte
 	if os.Getenv("CCOW_SVCNAME") != "" {
@@ -472,19 +535,143 @@ func (d NdnfsDriver) GetNfsList() (nfsList []string, err error) {
 	}
 	return nfsList, err
 }
+*/
 
 func (d NdnfsDriver) ListVolumes() (vmap map[string]string, err error) {
 	log.Debug(DN, "ListVolumes ")
-	nfsList, err := d.GetNfsList()
-	vmap = make(map[string]string)
-	for v := range nfsList {
-		vname := strings.Split(nfsList[v], "/")[len(strings.Split(nfsList[v], "/"))-1]
-		vmap[vname] = fmt.Sprintf("%s/%s", d.Config.Mountpoint, vname)
+
+	services, err := d.ListServices()
+	if err != nil {
+		log.Infof("Failed during ListServices : %+v\n", err)
+		return nil, err
 	}
+
+	for _, service := range services {
+		if service.ServiceType == "nfs" && service.Status == "enabled" {
+			volumes, err := d.GetNfsVolumes(service.Name)
+			if err != nil {
+				log.Fatal("ListVolumes failed Error: ", err)
+				return nil, err
+			}
+
+			for _, v := range volumes {
+				vname := v.VolumeID
+				vmap[vname] = fmt.Sprintf("%s:%s", service.Network[0], v.Share)
+			}
+		}
+	}
+
 	log.Debug(vmap)
 	return vmap, err
 }
 
 func isPowerOfTwo(x int) (res bool) {
 	return (x != 0) && ((x & (x - 1)) == 0)
+}
+
+func (d NdnfsDriver) GetServiceInstance(name string) (serviceInstance NedgeService, err error) {
+	services, err := d.ListServices()
+
+	for _, service := range services {
+		if service.Name == name {
+			return service, err
+		}
+	}
+
+	return serviceInstance, errors.New("Service " + name + " not found")
+}
+
+func (d NdnfsDriver) ListServices() (services []NedgeService, err error) {
+	log.Info("ListServices: ")
+
+	path := "service"
+	body, err := d.doNedgeRequest("GET", path, nil)
+
+	//response.data.<service name>.<prop>.value
+	r := make(map[string]map[string]interface{})
+	jsonerr := json.Unmarshal(body, &r)
+	if jsonerr != nil {
+		log.Error(jsonerr)
+		return services, jsonerr
+	}
+
+	data := r["response"]["data"]
+	if data == nil {
+		err = fmt.Errorf("No response.data object found for ListService request")
+		log.Debug(err.Error)
+		return services, err
+	}
+
+	for srvName, serviceObj := range data.(map[string]interface{}) {
+
+		serviceVal := serviceObj.(map[string]interface{})
+		status := serviceVal["X-Status"].(string)
+		serviceType := serviceVal["X-Service-Type"].(string)
+
+		service := NedgeService{Name: srvName, ServiceType: serviceType, Status: status, Network: make([]string, 0)}
+		// gets all repetitive props
+		for key, val := range serviceVal {
+			if strings.HasPrefix(key, "X-Container-Network-") {
+				//
+				if strings.HasPrefix(val.(string), "client-net --ip ") {
+					service.Network = append(service.Network, strings.TrimPrefix(val.(string), "client-net --ip "))
+					continue
+				}
+			}
+		}
+
+		services = append(services, service)
+	}
+
+	log.Debugf("ServiceList : %+v\n", services)
+	return services, err
+}
+
+func (d NdnfsDriver) GetService(service string) (body []byte, err error) {
+	path := fmt.Sprintf("service/%s", service)
+	return d.doNedgeRequest("GET", path, nil)
+}
+
+func (d NdnfsDriver) GetNfsVolumes(service string) (volumes []NedgeNFSVolume, err error) {
+
+	body, err := d.GetService(service)
+	if err != nil {
+		log.Errorf("Can't get service by name %s %+v", service, err)
+		return volumes, err
+	}
+
+	r := make(map[string]map[string]map[string]interface{})
+	jsonerr := json.Unmarshal(body, &r)
+
+	if jsonerr != nil {
+		log.Error(jsonerr)
+		return volumes, err
+	}
+	if r["response"]["data"]["X-Service-Objects"] == nil {
+		log.Errorf("No NFS volumes found for service %s", service)
+		return volumes, err
+	}
+
+	var objects []string
+	strList := r["response"]["data"]["X-Service-Objects"].(string)
+	err = json.Unmarshal([]byte(strList), &objects)
+	if err != nil {
+		log.Error(err)
+		return volumes, err
+	}
+
+	// Object format: "<id>,<ten/buc>@<clu/ten/buc>""
+	for _, v := range objects {
+		var objectParts = strings.Split(v, ",")
+		if len(objectParts) > 1 {
+
+			parts := strings.Split(objectParts[1], "@")
+			if len(parts) > 1 {
+				share := "/" + parts[0]
+				volume := NedgeNFSVolume{VolumeID: fmt.Sprintf("%s:%s", service, parts[1]), Share: share, Path: parts[1]}
+				volumes = append(volumes, volume)
+			}
+		}
+	}
+	return volumes, err
 }
