@@ -360,8 +360,10 @@ func (d NdnfsDriver) GetVolumeByID(volumeID string) (nfsVolume NedgeNFSVolume, m
 
 	for _, v := range nfsMap {
 		if v.VolumeID == volumeID {
-			mountpoint = fmt.Sprintf("%s:%s", service.Network[0], v.Share)
-			return v, mountpoint, err
+			if len(service.Network) > 0 {
+				mountpoint = fmt.Sprintf("%s:%s", service.Network[0], v.Share)
+				return v, mountpoint, err
+			}
 		}
 	}
 	return nfsVolume, mountpoint, errors.New("Can't find NfsVolume by ID:" + volumeID)
@@ -540,23 +542,32 @@ func (d NdnfsDriver) GetNfsList() (nfsList []string, err error) {
 func (d NdnfsDriver) ListVolumes() (vmap map[string]string, err error) {
 	log.Debug(DN, "ListVolumes ")
 
+	vmap = make(map[string]string)
 	services, err := d.ListServices()
 	if err != nil {
 		log.Infof("Failed during ListServices : %+v\n", err)
 		return nil, err
 	}
 
+	log.Infof("Services: %+v", services)
 	for _, service := range services {
-		if service.ServiceType == "nfs" && service.Status == "enabled" {
+		if service.ServiceType == "nfs" && service.Status == "enabled" && service.Name == "nfs01" {
 			volumes, err := d.GetNfsVolumes(service.Name)
 			if err != nil {
 				log.Fatal("ListVolumes failed Error: ", err)
 				return nil, err
 			}
 
+			log.Infof("NFS Volumes: %+v\n", volumes)
+
 			for _, v := range volumes {
 				vname := v.VolumeID
-				vmap[vname] = fmt.Sprintf("%s:%s", service.Network[0], v.Share)
+				log.Infof("Network len is %d value: %+v\n", len(service.Network), service.Network)
+				log.Infof("vname is %s\n", vname)
+				log.Infof("vmap is %s\n", vmap)
+				if len(service.Network) > 0 {
+					vmap[vname] = fmt.Sprintf("%s:%s", service.Network[0], v.Share)
+				}
 			}
 		}
 	}
