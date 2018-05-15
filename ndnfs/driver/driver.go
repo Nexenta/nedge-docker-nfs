@@ -67,7 +67,7 @@ type NedgeNFSVolume struct {
 }
 
 func ParseVolumeID(path string) (resultObject VolumeID, err error) {
-	parts := strings.Split(path, ":")
+	parts := strings.Split(path, "@")
 	if len(parts) != 2 {
 		err := errors.New("Wrong format of object path. Path must be in format service:/cluster/tenant/bucket")
 		return resultObject, err
@@ -88,7 +88,7 @@ func ParseVolumeID(path string) (resultObject VolumeID, err error) {
 }
 
 func (path *VolumeID) GetObjectPath() string {
-	return fmt.Sprintf("%s:%s/%s/%s", path.Service, path.Cluster, path.Tenant, path.Bucket)
+	return fmt.Sprintf("%s@%s/%s/%s", path.Service, path.Cluster, path.Tenant, path.Bucket)
 }
 
 func ReadParseConfig(fname string) Config {
@@ -707,7 +707,7 @@ func (d NdnfsDriver) GetNfsVolumes(service string) (volumes []NedgeNFSVolume, er
 			parts := strings.Split(objectParts[1], "@")
 			if len(parts) > 1 {
 				share := "/" + parts[0]
-				volume := NedgeNFSVolume{VolumeID: fmt.Sprintf("%s:%s", service, parts[1]), Share: share, Path: parts[1]}
+				volume := NedgeNFSVolume{VolumeID: fmt.Sprintf("%s@%s", service, parts[1]), Share: share, Path: parts[1]}
 				volumes = append(volumes, volume)
 			}
 		}
