@@ -432,15 +432,15 @@ func (d NdnfsDriver) Mount(r *volume.MountRequest) (*volume.MountResponse, error
 	}
 
 	// no need mountpoint yet
-	nfsVolume, _, err := d.GetVolumeByID(r.Name)
+	_, mountpoint, err := d.GetVolumeByID(r.Name)
 	if err != nil {
 		return nil, err
 	}
 
 	//nfs := fmt.Sprintf("%s:/%s/%s", d.Config.Nedgedata, volID.Tenant, volID.Bucket)
-	nfs := fmt.Sprintf("%s:%s", d.Config.Nedgedata, nfsVolume.Share)
+	//nfs := fmt.Sprintf("%s:%s", d.Config.Nedgedata, nfsVolume.Share)
 	mnt = filepath.Join(d.Config.Mountpoint, volID.GetObjectPath())
-	log.Infof(DN, "Creating mountpoint folder:%s to remote share %s ", mnt, nfs)
+	log.Infof(DN, "Creating mountpoint folder:%s to remote share %s ", mnt, mountpoint)
 	if out, err := exec.Command("mkdir", "-p", mnt).CombinedOutput(); err != nil {
 		log.Info("Error running mkdir command: ", err, "{", string(out), "}")
 	}
@@ -448,7 +448,7 @@ func (d NdnfsDriver) Mount(r *volume.MountRequest) (*volume.MountResponse, error
 	out, err := exec.Command("mount").CombinedOutput()
 	if !strings.Contains(string(out), mnt) {
 		log.Debug(DN, "Mounting Volume ", r.Name)
-		args := []string{"-t", "nfs", nfs, mnt}
+		args := []string{"-t", "nfs", mountpoint, mnt}
 		if out, err := exec.Command("mount", args...).CombinedOutput(); err != nil {
 			err = errors.New(fmt.Sprintf("%s: %s", err, out))
 			log.Panic("Error running mount command: ", err, "{", string(out), "}")
@@ -510,7 +510,7 @@ func (d NdnfsDriver) Unmount(r *volume.UnmountRequest) (err error) {
 	}
 
 	// no need mountpoint yet
-	nfsVolume, _, err := d.GetVolumeByID(r.Name)
+	_, mountpoint, err := d.GetVolumeByID(r.Name)
 	if err != nil {
 		return err
 	}
@@ -520,8 +520,9 @@ func (d NdnfsDriver) Unmount(r *volume.UnmountRequest) (err error) {
 		log.Info("Error running rm command: ", err, "{", string(out), "}")
 	}
 
-	nfs := fmt.Sprintf("%s:%s", d.Config.Nedgedata, nfsVolume.Share)
-	if out, err := exec.Command("umount", nfs).CombinedOutput(); err != nil {
+	//nfs := fmt.Sprintf("%s:%s", d.Config.Nedgedata, nfsVolume.Share)
+
+	if out, err := exec.Command("umount", mountpoint).CombinedOutput(); err != nil {
 		log.Error("Error running umount command: ", err, "{", string(out), "}")
 	}
 	return err
@@ -590,9 +591,9 @@ func (d NdnfsDriver) ListVolumes() (vmap map[string]string, err error) {
 
 			for _, v := range volumes {
 				vname := v.VolumeID
-				log.Infof("Network len is %d value: %+v\n", len(service.Network), service.Network)
-				log.Infof("vname is %s\n", vname)
-				log.Infof("vmap is %s\n", vmap)
+				//log.Infof("Network len is %d value: %+v\n", len(service.Network), service.Network)
+				//log.Infof("vname is %s\n", vname)
+				//log.Infof("vmap is %s\n", vmap)
 				if len(service.Network) > 0 {
 					vmap[vname] = fmt.Sprintf("%s:%s", service.Network[0], v.Share)
 				}
@@ -648,45 +649,30 @@ func (d NdnfsDriver) ListServices() (services []NedgeService, err error) {
 		serviceType := serviceVal["X-Service-Type"].(string)
 
 		service := NedgeService{Name: srvName, ServiceType: serviceType, Status: status, Network: make([]string, 0)}
+
+		//xvips := serviceVal["X-VIPS"]
+
+		if xvip, ok := serviceVal["X-VIPS"].(string); ok {
+			log.Infof("Item is %+v\n", xvip)
+			ipMatch := "\"ip\":\""
+			ipPos := strings.Index(xvip, ipMatch)
+			fmt.Println("Index: ", ipPos)
+			ipLast := xvip[ipPos + len(ipMatch):]
+			ipPos =  strings.Index(ipLast, "/")
+			vipIP := ipLast[:ipPos]
+
+			fmt.Printf("VipIP: %s\n", vipIP)
+
+			service.Network = append(service.Network, vipIP)
+			services = append(services, service)
+			continue
+
+		}
+
 		// gets all repetitive props
 		for key, val := range serviceVal {
 
-			//get VIPS first for HA cluster
-			if key == "X-VIPS" {
-				vipFound := false
-				vips := val.([]interface{})
-				for _, item := range vips {
-					vipObjs := item.([]interface{})
-					log.Infof("Item is %+v\n", item)
-					for _, inner := range vipObjs {
-						// skip name
-						if _, ok := inner.(string); ok {
-							continue
-						}
-
-						if _, ok := inner.(map[string]interface{}); ok {
-							vipObj := inner.(map[string]interface{})
-
-							if vipIP, ok := vipObj["ip"]; ok {
-								service.Network = append(service.Network, vipIP.(string))
-								vipFound = true
-								log.Infof("VIP IP is %s", vipIP)
-								break
-							}
-
-						}
-
-					}
-
-					if vipFound {
-						break
-					}
-				}
-
-			}
-
 			if strings.HasPrefix(key, "X-Container-Network-") {
-				//
 				if strings.HasPrefix(val.(string), "client-net --ip ") {
 					service.Network = append(service.Network, strings.TrimPrefix(val.(string), "client-net --ip "))
 					continue
