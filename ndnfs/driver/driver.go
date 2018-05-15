@@ -334,34 +334,34 @@ func (d NdnfsDriver) Get(r *volume.GetRequest) (*volume.GetResponse, error) {
 	return &volume.GetResponse{Volume: &volume.Volume{Name: volumeInstance.VolumeID, Mountpoint: mountpoint}}, err
 }
 
-func (d NdnfsDriver) GetVolumeByID(volumeID string) (nfsVolume NedgeNFSVolume, mountpoint string, err error) {
+func (d NdnfsDriver) GetVolumeByID(volumeID string) (nfsVolume NedgeNFSVolume, nfsEndpoint string, err error) {
 	log.Debug(DN, "Get volume by ID : ", volumeID)
 
 	volID, err := ParseVolumeID(volumeID)
 	if err != nil {
-		return nfsVolume, mountpoint, err
+		return nfsVolume, nfsEndpoint, err
 	}
 
 	service, err := d.GetServiceInstance(volID.Service)
 	if err != nil {
-		return nfsVolume, mountpoint, err
+		return nfsVolume, nfsEndpoint, err
 	}
 
 	nfsMap, err := d.GetNfsVolumes(volID.Service)
 	if err != nil {
-		log.Info("Can't get  GetNfsVolumes")
-		return nfsVolume, mountpoint, err
+		log.Info("Error during GetNfsVolumes")
+		return nfsVolume, nfsEndpoint, err
 	}
 
 	for _, v := range nfsMap {
 		if v.VolumeID == volumeID {
 			if len(service.Network) > 0 {
-				mountpoint = fmt.Sprintf("%s:%s", service.Network[0], v.Share)
-				return v, mountpoint, err
+				nfsEndpoint = fmt.Sprintf("%s:%s", service.Network[0], v.Share)
+				return v, nfsEndpoint, err
 			}
 		}
 	}
-	return nfsVolume, mountpoint, errors.New("Can't find volume by ID:" + volumeID + "\n")
+	return nfsVolume, nfsEndpoint, errors.New("Can't find volume by ID:" + volumeID + "\n")
 }
 
 func (d NdnfsDriver) IsBucketExist(cluster string, tenant string, bucket string) bool {
@@ -431,16 +431,13 @@ func (d NdnfsDriver) Mount(r *volume.MountRequest) (*volume.MountResponse, error
 		return nil, err
 	}
 
-	// no need mountpoint yet
-	_, mountpoint, err := d.GetVolumeByID(r.Name)
+	_, nfsEndpoint, err := d.GetVolumeByID(r.Name)
 	if err != nil {
 		return nil, err
 	}
 
-	//nfs := fmt.Sprintf("%s:/%s/%s", d.Config.Nedgedata, volID.Tenant, volID.Bucket)
-	//nfs := fmt.Sprintf("%s:%s", d.Config.Nedgedata, nfsVolume.Share)
 	mnt = filepath.Join(d.Config.Mountpoint, volID.GetObjectPath())
-	log.Infof(DN, "Creating mountpoint folder:%s to remote share %s ", mnt, mountpoint)
+	log.Infof(DN, "Creating mountpoint folder:%s to remote share %s ", mnt, nfsEndpoint)
 	if out, err := exec.Command("mkdir", "-p", mnt).CombinedOutput(); err != nil {
 		log.Info("Error running mkdir command: ", err, "{", string(out), "}")
 	}
@@ -448,7 +445,7 @@ func (d NdnfsDriver) Mount(r *volume.MountRequest) (*volume.MountResponse, error
 	out, err := exec.Command("mount").CombinedOutput()
 	if !strings.Contains(string(out), mnt) {
 		log.Debug(DN, "Mounting Volume ", r.Name)
-		args := []string{"-t", "nfs", mountpoint, mnt}
+		args := []string{"-t", "nfs", nfsEndpoint, mnt}
 		if out, err := exec.Command("mount", args...).CombinedOutput(); err != nil {
 			err = errors.New(fmt.Sprintf("%s: %s", err, out))
 			log.Panic("Error running mount command: ", err, "{", string(out), "}")
@@ -509,15 +506,12 @@ func (d NdnfsDriver) Unmount(r *volume.UnmountRequest) (err error) {
 		return err
 	}
 
-	// no need mountpoint yet
-	_, mountpoint, err := d.GetVolumeByID(r.Name)
+	_, nfsEndpoint, err := d.GetVolumeByID(r.Name)
 	if err != nil {
 		return err
 	}
 
-	//nfs := fmt.Sprintf("%s:%s", d.Config.Nedgedata, nfsVolume.Share)
-
-	if out, err := exec.Command("umount", mountpoint).CombinedOutput(); err != nil {
+	if out, err := exec.Command("umount", nfsEndpoint).CombinedOutput(); err != nil {
 		log.Error("Error running umount command: ", err, "{", string(out), "}")
 	} else {
 		mnt := filepath.Join(d.Config.Mountpoint, volID.GetObjectPath())
@@ -527,46 +521,6 @@ func (d NdnfsDriver) Unmount(r *volume.UnmountRequest) (err error) {
 	}
 	return err
 }
-
-/*
-func (d NdnfsDriver) GetNfsList() (nfsList []string, err error) {
-	var body []byte
-	if os.Getenv("CCOW_SVCNAME") != "" {
-		body, err = d.Request(
-			"GET", fmt.Sprintf("service/%s", os.Getenv("CCOW_SVCNAME")), nil)
-	} else {
-		body, err = d.Request(
-			"GET", fmt.Sprintf("service/%s", d.Config.Servicename), nil)
-	}
-
-	r := make(map[string]map[string]map[string]interface{})
-	jsonerr := json.Unmarshal(body, &r)
-	if jsonerr != nil {
-		log.Error(jsonerr)
-	}
-	if r["response"]["data"]["X-Service-Objects"] == nil {
-		return
-	}
-	var exports []string
-	strList := r["response"]["data"]["X-Service-Objects"].(string)
-	err = json.Unmarshal([]byte(strList), &exports)
-	if err != nil {
-		log.Fatal(err)
-	}
-	for i, v := range exports {
-		if len(strings.Split(v, ",")) > 1 {
-			var service = strings.Split(v, ",")[1]
-			var parts = strings.Split(service, "@")
-			if strings.HasPrefix(parts[1], fmt.Sprintf("%s/%s", d.Config.Clustername, d.Config.Tenantname)) {
-				nfsList = append(nfsList, parts[0])
-			}
-		} else {
-			nfsList[i] = v
-		}
-	}
-	return nfsList, err
-}
-*/
 
 func (d NdnfsDriver) ListVolumes() (vmap map[string]string, err error) {
 	log.Debug(DN, "ListVolumes ")
@@ -580,7 +534,7 @@ func (d NdnfsDriver) ListVolumes() (vmap map[string]string, err error) {
 
 	log.Infof("Services: %+v", services)
 	for _, service := range services {
-		if service.ServiceType == "nfs" && service.Status == "enabled" {
+		if service.ServiceType == "nfs" && service.Status == "enabled" && len(service.Network) > 0{
 			volumes, err := d.GetNfsVolumes(service.Name)
 			if err != nil {
 				log.Fatal("ListVolumes failed Error: ", err)
@@ -621,6 +575,40 @@ func (d NdnfsDriver) GetServiceInstance(name string) (serviceInstance NedgeServi
 	return serviceInstance, errors.New("Service " + name + " not found")
 }
 
+func GetVipIPFromString(xvips string) string {
+	log.Infof("X-Vips is: %s\n", xvips)
+        xvipBody := []byte(xvips)
+        r := make([]interface{}, 0)
+        jsonerr := json.Unmarshal(xvipBody, &r)
+        if jsonerr != nil {
+		log.Error(jsonerr)
+                return ""
+        }
+        log.Infof("Processed is: %s\n", r)
+
+	if r == nil {
+		return ""
+	}
+
+        for _, outerArrayItem := range r {
+	        innerArray := outerArrayItem.([]interface{})
+                log.Infof("InnerArray is: %s\n", innerArray)
+
+		if innerArray, ok := outerArrayItem.([]interface{}); ok {
+	                for _, innerArrayItem := range innerArray {
+		                if item, ok := innerArrayItem.(map[string]interface{}); ok {
+			                if ipValue, ok := item["ip"]; ok {
+				                log.Infof("VIP IP Found : %s\n", ipValue)
+						return ipValue.(string)
+	                                }
+	                        }
+	                }
+		}
+	}
+
+	return ""
+}
+
 func (d NdnfsDriver) ListServices() (services []NedgeService, err error) {
 	log.Info("ListServices: ")
 
@@ -650,9 +638,22 @@ func (d NdnfsDriver) ListServices() (services []NedgeService, err error) {
 
 		service := NedgeService{Name: srvName, ServiceType: serviceType, Status: status, Network: make([]string, 0)}
 
-		//xvips := serviceVal["X-VIPS"]
-
 		if xvip, ok := serviceVal["X-VIPS"].(string); ok {
+
+			VIP := GetVipIPFromString(xvip)
+                        if VIP != "" {
+                                //remove subnet
+                                subnetIndex := strings.Index(VIP, "/")
+                                if subnetIndex > 0 {
+                                        VIP := VIP[:subnetIndex]
+                                        log.Infof("X-VIP is: %s\n", VIP)
+					service.Network = append(service.Network, VIP)
+		                        services = append(services, service)
+		                        continue
+                                }
+                        }
+
+			/*
 			log.Infof("Item is %+v\n", xvip)
 			ipMatch := "\"ip\":\""
 			ipPos := strings.Index(xvip, ipMatch)
@@ -665,7 +666,7 @@ func (d NdnfsDriver) ListServices() (services []NedgeService, err error) {
 			service.Network = append(service.Network, vipIP)
 			services = append(services, service)
 			continue
-
+			*/
 		}
 
 		// gets all repetitive props
