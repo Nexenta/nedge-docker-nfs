@@ -8,7 +8,7 @@ NexentaEdge Plugin for Docker Volumes
 Clone this repository.
 Example of a config file can be found in the ndnfs/driver folder.
   ```
-  git clone -b saic --single-branch https://github.com/Nexenta/nedge-docker-nfs.git $GOPATH/src/github.com/Nexenta/nedge-docker-nfs
+  git clone -b stable/v17 --single-branch https://github.com/Nexenta/nedge-docker-nfs.git $GOPATH/src/github.com/Nexenta/nedge-docker-nfs
   mkdir /etc/ndnfs
   cp $GOPATH/src/github.com/Nexenta/nedge-docker-nfs/ndnfs/driver/ndnfs.json /etc/ndnfs
   cd $GOPATH/src/github.com/Nexenta/nedge-docker-nfs
