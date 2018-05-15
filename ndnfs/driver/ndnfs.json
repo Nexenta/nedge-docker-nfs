@@ -2,6 +2,7 @@
     "nedgerest": "localhost",
     "nedgeport": 8080,
     "chunksize": 1048576,
+    "mountpoint": "/var/lib/ndnfs",
     "username": "admin",
     "password": "nexenta"
 }
