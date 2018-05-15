@@ -88,7 +88,7 @@ func ParseVolumeID(path string) (resultObject VolumeID, err error) {
 }
 
 func (path *VolumeID) GetObjectPath() string {
-	return fmt.Sprintf("%s:%s/%s/%s", path.Service, path.Cluster, path.Tenant, path.Bucket)
+	return fmt.Sprintf("%s@%s/%s/%s", path.Service, path.Cluster, path.Tenant, path.Bucket)
 }
 
 func ReadParseConfig(fname string) Config {
@@ -656,12 +656,11 @@ func (d NdnfsDriver) ListServices() (services []NedgeService, err error) {
 			log.Infof("Item is %+v\n", xvip)
 			ipMatch := "\"ip\":\""
 			ipPos := strings.Index(xvip, ipMatch)
-			fmt.Println("Index: ", ipPos)
 			ipLast := xvip[ipPos + len(ipMatch):]
 			ipPos =  strings.Index(ipLast, "/")
 			vipIP := ipLast[:ipPos]
 
-			fmt.Printf("VipIP: %s\n", vipIP)
+			log.Infof("VipIP: %s\n", vipIP)
 
 			service.Network = append(service.Network, vipIP)
 			services = append(services, service)
@@ -728,7 +727,7 @@ func (d NdnfsDriver) GetNfsVolumes(service string) (volumes []NedgeNFSVolume, er
 			parts := strings.Split(objectParts[1], "@")
 			if len(parts) > 1 {
 				share := "/" + parts[0]
-				volume := NedgeNFSVolume{VolumeID: fmt.Sprintf("%s:%s", service, parts[1]), Share: share, Path: parts[1]}
+				volume := NedgeNFSVolume{VolumeID: fmt.Sprintf("%s@%s", service, parts[1]), Share: share, Path: parts[1]}
 				volumes = append(volumes, volume)
 			}
 		}
