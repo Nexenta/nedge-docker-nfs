@@ -88,7 +88,7 @@ func ParseVolumeID(path string) (resultObject VolumeID, err error) {
 }
 
 func (path *VolumeID) GetObjectPath() string {
-	return fmt.Sprintf("%s@%s/%s/%s", path.Service, path.Cluster, path.Tenant, path.Bucket)
+	return fmt.Sprintf("%s:%s/%s/%s", path.Service, path.Cluster, path.Tenant, path.Bucket)
 }
 
 func ReadParseConfig(fname string) Config {
@@ -650,6 +650,41 @@ func (d NdnfsDriver) ListServices() (services []NedgeService, err error) {
 		service := NedgeService{Name: srvName, ServiceType: serviceType, Status: status, Network: make([]string, 0)}
 		// gets all repetitive props
 		for key, val := range serviceVal {
+
+			//get VIPS first for HA cluster
+			if key == "X-VIPS" {
+				vipFound := false
+				vips := val.([]interface{})
+				for _, item := range vips {
+					vipObjs := item.([]interface{})
+					log.Infof("Item is %+v\n", item)
+					for _, inner := range vipObjs {
+						// skip name
+						if _, ok := inner.(string); ok {
+							continue
+						}
+
+						if _, ok := inner.(map[string]interface{}); ok {
+							vipObj := inner.(map[string]interface{})
+
+							if vipIP, ok := vipObj["ip"]; ok {
+								service.Network = append(service.Network, vipIP.(string))
+								vipFound = true
+								log.Infof("VIP IP is %s", vipIP)
+								break
+							}
+
+						}
+
+					}
+
+					if vipFound {
+						break
+					}
+				}
+
+			}
+
 			if strings.HasPrefix(key, "X-Container-Network-") {
 				//
 				if strings.HasPrefix(val.(string), "client-net --ip ") {
@@ -707,7 +742,7 @@ func (d NdnfsDriver) GetNfsVolumes(service string) (volumes []NedgeNFSVolume, er
 			parts := strings.Split(objectParts[1], "@")
 			if len(parts) > 1 {
 				share := "/" + parts[0]
-				volume := NedgeNFSVolume{VolumeID: fmt.Sprintf("%s@%s", service, parts[1]), Share: share, Path: parts[1]}
+				volume := NedgeNFSVolume{VolumeID: fmt.Sprintf("%s:%s", service, parts[1]), Share: share, Path: parts[1]}
 				volumes = append(volumes, volume)
 			}
 		}
