@@ -515,15 +515,15 @@ func (d NdnfsDriver) Unmount(r *volume.UnmountRequest) (err error) {
 		return err
 	}
 
-	mnt := filepath.Join(d.Config.Mountpoint, volID.GetObjectPath())
-	if out, err := exec.Command("rm", "-rf", mnt).CombinedOutput(); err != nil {
-		log.Info("Error running rm command: ", err, "{", string(out), "}")
-	}
-
 	//nfs := fmt.Sprintf("%s:%s", d.Config.Nedgedata, nfsVolume.Share)
 
 	if out, err := exec.Command("umount", mountpoint).CombinedOutput(); err != nil {
 		log.Error("Error running umount command: ", err, "{", string(out), "}")
+	} else {
+		mnt := filepath.Join(d.Config.Mountpoint, volID.GetObjectPath())
+		if out, err := exec.Command("rm", "-rf", mnt).CombinedOutput(); err != nil {
+			log.Info("Error running rm command: ", err, "{", string(out), "}")
+		}
 	}
 	return err
 }
