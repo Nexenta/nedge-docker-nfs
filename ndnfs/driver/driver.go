@@ -69,13 +69,13 @@ type NedgeNFSVolume struct {
 func ParseVolumeID(path string) (resultObject VolumeID, err error) {
 	parts := strings.Split(path, "@")
 	if len(parts) != 2 {
-		err := errors.New("Wrong format of object path. Path must be in format service:/cluster/tenant/bucket")
+		err := errors.New("Wrong format of object path. Path must be in format service@cluster/tenant/bucket")
 		return resultObject, err
 	}
 
 	pathObjects := strings.Split(parts[1], "/")
 	if len(pathObjects) != 3 {
-		err := errors.New("Wrong format of object path. Path must be in format service:/cluster/tenant/bucket")
+		err := errors.New("Wrong format of object path. Path must be in format service@cluster/tenant/bucket")
 		return resultObject, err
 	}
 
@@ -146,14 +146,11 @@ func (d *NdnfsDriver) setupConfigRequest(serviceName string, configParamName str
 	return err
 }
 
-func (d *NdnfsDriver) SetBucketQuota(cluster string, tenant string, bucket string, quota string, quotaCount string) error {
+func (d *NdnfsDriver) SetBucketQuota(cluster string, tenant string, bucket string, quota string) error {
 	path := fmt.Sprintf("clusters/%s/tenants/%s/buckets/%s/quota", cluster, tenant, bucket)
 
 	data := make(map[string]interface{})
 	data["quota"] = quota
-	if quotaCount != "" {
-		data["quota_count"] = quotaCount
-	}
 
 	log.Infof("SetBucketQuota: path: %s ", path)
 	_, err := d.doNedgeRequest("PUT", path, data)
@@ -288,7 +285,7 @@ func (d NdnfsDriver) Create(r *volume.CreateRequest) (err error) {
 
 	// setup quota configuration
 	if quota, ok := r.Options["size"]; ok {
-		err = d.SetBucketQuota(volID.Cluster, volID.Tenant, volID.Bucket, quota, r.Options["quota_count"])
+		err = d.SetBucketQuota(volID.Cluster, volID.Tenant, volID.Bucket, quota)
 		if err != nil {
 			log.Error(err)
 			return err
@@ -534,7 +531,7 @@ func (d NdnfsDriver) ListVolumes() (vmap map[string]string, err error) {
 
 	log.Infof("Services: %+v", services)
 	for _, service := range services {
-		if service.ServiceType == "nfs" && service.Status == "enabled" && len(service.Network) > 0{
+		if service.ServiceType == "nfs" && service.Status == "enabled" && len(service.Network) > 0 {
 			volumes, err := d.GetNfsVolumes(service.Name)
 			if err != nil {
 				log.Fatal("ListVolumes failed Error: ", err)
@@ -577,32 +574,32 @@ func (d NdnfsDriver) GetServiceInstance(name string) (serviceInstance NedgeServi
 
 func GetVipIPFromString(xvips string) string {
 	log.Infof("X-Vips is: %s\n", xvips)
-        xvipBody := []byte(xvips)
-        r := make([]interface{}, 0)
-        jsonerr := json.Unmarshal(xvipBody, &r)
-        if jsonerr != nil {
+	xvipBody := []byte(xvips)
+	r := make([]interface{}, 0)
+	jsonerr := json.Unmarshal(xvipBody, &r)
+	if jsonerr != nil {
 		log.Error(jsonerr)
-                return ""
-        }
-        log.Infof("Processed is: %s\n", r)
+		return ""
+	}
+	log.Infof("Processed is: %s\n", r)
 
 	if r == nil {
 		return ""
 	}
 
-        for _, outerArrayItem := range r {
-	        innerArray := outerArrayItem.([]interface{})
-                log.Infof("InnerArray is: %s\n", innerArray)
+	for _, outerArrayItem := range r {
+		innerArray := outerArrayItem.([]interface{})
+		log.Infof("InnerArray is: %s\n", innerArray)
 
 		if innerArray, ok := outerArrayItem.([]interface{}); ok {
-	                for _, innerArrayItem := range innerArray {
-		                if item, ok := innerArrayItem.(map[string]interface{}); ok {
-			                if ipValue, ok := item["ip"]; ok {
-				                log.Infof("VIP IP Found : %s\n", ipValue)
+			for _, innerArrayItem := range innerArray {
+				if item, ok := innerArrayItem.(map[string]interface{}); ok {
+					if ipValue, ok := item["ip"]; ok {
+						log.Infof("VIP IP Found : %s\n", ipValue)
 						return ipValue.(string)
-	                                }
-	                        }
-	                }
+					}
+				}
+			}
 		}
 	}
 
@@ -641,31 +638,31 @@ func (d NdnfsDriver) ListServices() (services []NedgeService, err error) {
 		if xvip, ok := serviceVal["X-VIPS"].(string); ok {
 
 			VIP := GetVipIPFromString(xvip)
-                        if VIP != "" {
-                                //remove subnet
-                                subnetIndex := strings.Index(VIP, "/")
-                                if subnetIndex > 0 {
-                                        VIP := VIP[:subnetIndex]
-                                        log.Infof("X-VIP is: %s\n", VIP)
+			if VIP != "" {
+				//remove subnet
+				subnetIndex := strings.Index(VIP, "/")
+				if subnetIndex > 0 {
+					VIP := VIP[:subnetIndex]
+					log.Infof("X-VIP is: %s\n", VIP)
 					service.Network = append(service.Network, VIP)
-		                        services = append(services, service)
-		                        continue
-                                }
-                        }
+					services = append(services, service)
+					continue
+				}
+			}
 
 			/*
-			log.Infof("Item is %+v\n", xvip)
-			ipMatch := "\"ip\":\""
-			ipPos := strings.Index(xvip, ipMatch)
-			ipLast := xvip[ipPos + len(ipMatch):]
-			ipPos =  strings.Index(ipLast, "/")
-			vipIP := ipLast[:ipPos]
+				log.Infof("Item is %+v\n", xvip)
+				ipMatch := "\"ip\":\""
+				ipPos := strings.Index(xvip, ipMatch)
+				ipLast := xvip[ipPos + len(ipMatch):]
+				ipPos =  strings.Index(ipLast, "/")
+				vipIP := ipLast[:ipPos]
 
-			log.Infof("VipIP: %s\n", vipIP)
+				log.Infof("VipIP: %s\n", vipIP)
 
-			service.Network = append(service.Network, vipIP)
-			services = append(services, service)
-			continue
+				service.Network = append(service.Network, vipIP)
+				services = append(services, service)
+				continue
 			*/
 		}
 
