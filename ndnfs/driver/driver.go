@@ -502,16 +502,17 @@ func (d NdnfsDriver) Unmount(r *volume.UnmountRequest) (err error) {
 	if err != nil {
 		return err
 	}
-
+	/*
 	_, nfsEndpoint, err := d.GetVolumeByID(r.Name)
 	if err != nil {
 		return err
 	}
+	*/
 
-	if out, err := exec.Command("umount", nfsEndpoint).CombinedOutput(); err != nil {
+	mnt := filepath.Join(d.Config.Mountpoint, volID.GetObjectPath())
+	if out, err := exec.Command("umount", mnt).CombinedOutput(); err != nil {
 		log.Error("Error running umount command: ", err, "{", string(out), "}")
 	} else {
-		mnt := filepath.Join(d.Config.Mountpoint, volID.GetObjectPath())
 		if out, err := exec.Command("rm", "-rf", mnt).CombinedOutput(); err != nil {
 			log.Info("Error running rm command: ", err, "{", string(out), "}")
 		}
