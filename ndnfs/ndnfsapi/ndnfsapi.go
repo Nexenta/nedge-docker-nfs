@@ -182,7 +182,7 @@ func (c *Client) CreateVolume(name string, options map[string]string) (err error
 
 	//setup bucket quota
 	if quota, ok := options["size"]; ok {
-		err = c.SetBucketQuota(cluster, tenant, name, quota, options["quota_count"])
+		err = c.SetBucketQuota(cluster, tenant, name, quota)
 		if err != nil {
 			log.Error(err)
 			return err
@@ -253,14 +253,11 @@ func (c *Client) removeAclParam(serviceName string, tenantName string, bucketNam
 	return c.setupConfigRequest(serviceName, aclName, "")
 }
 
-func (c *Client) SetBucketQuota(cluster string, tenant string, bucket string, quota string, quotaCount string) error {
+func (c *Client) SetBucketQuota(cluster string, tenant string, bucket string, quota string) error {
 	path := fmt.Sprintf("clusters/%s/tenants/%s/buckets/%s/quota", cluster, tenant, bucket)
 
 	data := make(map[string]interface{})
 	data["quota"] = quota
-	if quotaCount != "" {
-		data["quota_count"] = quotaCount
-	}
 
 	log.Infof("SetBucketQuota: path: %s ", path)
 	_, err := c.Request("PUT", path, data)
