@@ -36,14 +36,12 @@ type Config struct {
 	Name        string
 	Nedgerest   string
 	Nedgeport   int16
-	Nedgedata   string
-	Clustername string
-	Tenantname  string
 	Chunksize   int
 	Username    string
 	Password    string
 	Mountpoint  string
-	Servicename string
+	Service_Filter string
+	ServiceFilter map[string]bool
 }
 
 type VolumeID struct {
@@ -91,20 +89,24 @@ func (path *VolumeID) GetObjectPath() string {
 	return fmt.Sprintf("%s@%s/%s/%s", path.Service, path.Cluster, path.Tenant, path.Bucket)
 }
 
-func ReadParseConfig(fname string) Config {
+func ReadParseConfig(fname string) (config Config) {
 	content, err := ioutil.ReadFile(fname)
 	if err != nil {
-		log.Fatal(DN, "Error reading config file: ", fname, " error: ", err)
+		msg := fmt.Sprintf("Error reading config file: %s , Error: %s \n", fname, err)
+		log.Fatal(DN, msg, err)
 	}
 	var conf Config
 	err = json.Unmarshal(content, &conf)
 	if err != nil {
-		log.Fatal(DN, "Error parsing config file: ", fname, " error: ", err)
+		msg := fmt.Sprintf("Error parsing config file: %s, Error: %s \n ", fname, err)
+		log.Fatal(DN, msg)
 	}
+
+	conf.ServiceFilter = make(map[string]bool)
 	return conf
 }
 
-func DriverAlloc(cfgFile string) NdnfsDriver {
+func DriverAlloc(cfgFile string) (driver NdnfsDriver) {
 	conf := ReadParseConfig(cfgFile)
 	if conf.Chunksize == 0 {
 		conf.Chunksize = defaultChunkSize
@@ -112,15 +114,24 @@ func DriverAlloc(cfgFile string) NdnfsDriver {
 	if conf.Mountpoint == "" {
 		conf.Mountpoint = defaultMountPoint
 	}
+
+
+	if conf.Service_Filter != "" {
+		services := strings.Split(conf.Service_Filter, ",")
+		for _, srvName := range services {
+			conf.ServiceFilter[strings.TrimSpace(srvName)] = true
+		}
+	}
+
 	log.Info(DN, " config: ", conf)
-	d := NdnfsDriver{
+	driver = NdnfsDriver{
 		Scope:        "local",
 		DefaultVolSz: 1024,
 		Mutex:        &sync.Mutex{},
 		Endpoint:     fmt.Sprintf("http://%s:%d/", conf.Nedgerest, conf.Nedgeport),
 		Config:       &conf,
 	}
-	return d
+	return driver
 }
 
 func (d *NdnfsDriver) setUpAclParams(serviceName string, tenantName string, bucketName string, value string) (err error) {
@@ -502,12 +513,6 @@ func (d NdnfsDriver) Unmount(r *volume.UnmountRequest) (err error) {
 	if err != nil {
 		return err
 	}
-	/*
-	_, nfsEndpoint, err := d.GetVolumeByID(r.Name)
-	if err != nil {
-		return err
-	}
-	*/
 
 	mnt := filepath.Join(d.Config.Mountpoint, volID.GetObjectPath())
 	if out, err := exec.Command("umount", mnt).CombinedOutput(); err != nil {
@@ -629,6 +634,13 @@ func (d NdnfsDriver) ListServices() (services []NedgeService, err error) {
 	}
 
 	for srvName, serviceObj := range data.(map[string]interface{}) {
+
+		//if ServiceFilter not empty, skip every service not entered in list(map)
+		if len(d.Config.ServiceFilter) > 0  {
+			if _, ok := d.Config.ServiceFilter[srvName]; !ok {
+				continue
+			}
+		}
 
 		serviceVal := serviceObj.(map[string]interface{})
 		status := serviceVal["X-Status"].(string)
