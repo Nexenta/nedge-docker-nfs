@@ -9,11 +9,7 @@ import (
 
 func main() {
 	
-	ndnfs, err := driver.DriverAlloc("/etc/ndnfs/ndnfs.json")
-	if err != nil {
-		fmt.Printf("Driver alloc failed, Error: %s\n", err)
-		return
-	}
+	ndnfs := driver.DriverAlloc("/etc/ndnfs/ndnfs.json")
 	fmt.Printf("Config is : %+v\n", ndnfs.Config)
 /*
 	fmt.Printf("List volume")
