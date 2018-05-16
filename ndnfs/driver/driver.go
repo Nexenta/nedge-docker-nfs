@@ -89,28 +89,25 @@ func (path *VolumeID) GetObjectPath() string {
 	return fmt.Sprintf("%s@%s/%s/%s", path.Service, path.Cluster, path.Tenant, path.Bucket)
 }
 
-func ReadParseConfig(fname string) (config Config, err error) {
+func ReadParseConfig(fname string) (config Config) {
 	content, err := ioutil.ReadFile(fname)
 	if err != nil {
 		msg := fmt.Sprintf("Error reading config file: %s , Error: %s \n", fname, err)
 		log.Fatal(DN, msg, err)
-		return config, errors.New(msg)
+		return config
 	}
 	var conf Config
 	err = json.Unmarshal(content, &conf)
 	if err != nil {
 		msg := fmt.Sprintf("Error parsing config file: %s, Error: %s \n ", fname, err)
 		log.Fatal(DN, msg)
-		return config, errors.New(msg)
+		return config
 	}
-	return conf, err
+	return conf
 }
 
-func DriverAlloc(cfgFile string) (driver NdnfsDriver, err error) {
-	conf, err := ReadParseConfig(cfgFile)
-	if err != nil {
-		return driver, err
-	}
+func DriverAlloc(cfgFile string) (driver NdnfsDriver) {
+	conf := ReadParseConfig(cfgFile)
 	if conf.Chunksize == 0 {
 		conf.Chunksize = defaultChunkSize
 	}
@@ -133,7 +130,7 @@ func DriverAlloc(cfgFile string) (driver NdnfsDriver, err error) {
 		Endpoint:     fmt.Sprintf("http://%s:%d/", conf.Nedgerest, conf.Nedgeport),
 		Config:       &conf,
 	}
-	return driver, err
+	return driver
 }
 
 func (d *NdnfsDriver) setUpAclParams(serviceName string, tenantName string, bucketName string, value string) (err error) {
