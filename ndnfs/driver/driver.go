@@ -94,14 +94,12 @@ func ReadParseConfig(fname string) (config Config) {
 	if err != nil {
 		msg := fmt.Sprintf("Error reading config file: %s , Error: %s \n", fname, err)
 		log.Fatal(DN, msg, err)
-		return config
 	}
 	var conf Config
 	err = json.Unmarshal(content, &conf)
 	if err != nil {
 		msg := fmt.Sprintf("Error parsing config file: %s, Error: %s \n ", fname, err)
 		log.Fatal(DN, msg)
-		return config
 	}
 	return conf
 }
