@@ -86,8 +86,7 @@ func Start(cfgFile string, debug bool) {
 	log.Info("Default docker root ndnfs: ", defaultDir)
 	d, err := driver.DriverAlloc(cfgFile)
 	if err != nil {
-		log.Fatal(err)
-		return
+		log.Error(err)
 	}
 	h := volume.NewHandler(d)
 	log.Info("Driver Created, v2 Handler Initialized")
