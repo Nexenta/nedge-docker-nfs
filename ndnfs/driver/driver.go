@@ -36,14 +36,12 @@ type Config struct {
 	Name        string
 	Nedgerest   string
 	Nedgeport   int16
-	Nedgedata   string
-	Clustername string
-	Tenantname  string
 	Chunksize   int
 	Username    string
 	Password    string
 	Mountpoint  string
-	Servicename string
+	Service_Filter string
+	ServiceFilter []string
 }
 
 type VolumeID struct {
@@ -91,36 +89,51 @@ func (path *VolumeID) GetObjectPath() string {
 	return fmt.Sprintf("%s@%s/%s/%s", path.Service, path.Cluster, path.Tenant, path.Bucket)
 }
 
-func ReadParseConfig(fname string) Config {
+func ReadParseConfig(fname string) (config Config, err error) {
 	content, err := ioutil.ReadFile(fname)
 	if err != nil {
-		log.Fatal(DN, "Error reading config file: ", fname, " error: ", err)
+		msg := fmt.Sprintf("Error reading config file: %s , Error: %s \n", fname, err)
+		log.Fatal(DN, msg, err)
+		return config, errors.New(msg)
 	}
 	var conf Config
 	err = json.Unmarshal(content, &conf)
 	if err != nil {
-		log.Fatal(DN, "Error parsing config file: ", fname, " error: ", err)
+		msg := fmt.Sprintf("Error parsing config file: %s, Error: %s \n ", fname, err)
+		log.Fatal(DN, msg)
+		return config, errors.New(msg)
 	}
-	return conf
+	return conf, err
 }
 
-func DriverAlloc(cfgFile string) NdnfsDriver {
-	conf := ReadParseConfig(cfgFile)
+func DriverAlloc(cfgFile string) (driver NdnfsDriver, err error) {
+	conf, err := ReadParseConfig(cfgFile)
+	if err != nil {
+		return driver, err
+	}
 	if conf.Chunksize == 0 {
 		conf.Chunksize = defaultChunkSize
 	}
 	if conf.Mountpoint == "" {
 		conf.Mountpoint = defaultMountPoint
 	}
+
+	if conf.Service_Filter != "" {
+		services := strings.Split(conf.Service_Filter, ",")
+		for _, srvName := range services {
+			conf.ServiceFilter = append(conf.ServiceFilter, strings.TrimSpace(srvName))
+		}
+	}
+
 	log.Info(DN, " config: ", conf)
-	d := NdnfsDriver{
+	driver = NdnfsDriver{
 		Scope:        "local",
 		DefaultVolSz: 1024,
 		Mutex:        &sync.Mutex{},
 		Endpoint:     fmt.Sprintf("http://%s:%d/", conf.Nedgerest, conf.Nedgeport),
 		Config:       &conf,
 	}
-	return d
+	return driver, err
 }
 
 func (d *NdnfsDriver) setUpAclParams(serviceName string, tenantName string, bucketName string, value string) (err error) {
