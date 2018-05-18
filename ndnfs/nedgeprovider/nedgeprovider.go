@@ -255,7 +255,7 @@ func (nedge *NexentaEdgeProvider) GetService(serviceName string) (service NedgeS
 
 	data := r["response"]["data"]
 	if data == nil {
-		err = fmt.Errorf("No response.data object found for ListService request")
+		err = fmt.Errorf("No response.data object found for GetService request")
 		log.Debug(err.Error)
 		return service, err
 	}
@@ -475,47 +475,12 @@ func (nedge *NexentaEdgeProvider) ListTenants(cluster string) (tenants []string,
 
 func (nedge *NexentaEdgeProvider) ListServiceVolumes(service string) (volumes []NedgeNFSVolume, err error) {
 
-	path := fmt.Sprintf("service/%s", service)
-	body, err := nedge.doNedgeRequest("GET", path, nil)
+	serviceObj, err := nedge.GetService(service)
 	if err != nil {
-		log.Errorf("Can't get service by name %s %+v", service, err)
 		return volumes, err
 	}
 
-	r := make(map[string]map[string]map[string]interface{})
-	jsonerr := json.Unmarshal(body, &r)
-
-	if jsonerr != nil {
-		log.Error(jsonerr)
-		return volumes, err
-	}
-	if r["response"]["data"]["X-Service-Objects"] == nil {
-		log.Errorf("No NFS volumes found for service %s", service)
-		return volumes, err
-	}
-
-	//TODO: Check []string assignment and remove Unmarshal
-	var objects []string
-	strList := r["response"]["data"]["X-Service-Objects"].(string)
-	err = json.Unmarshal([]byte(strList), &objects)
-	if err != nil {
-		log.Error(err)
-		return volumes, err
-	}
-
-	// Object format: "<id>,<ten/buc>@<clu/ten/buc>""
-	for _, v := range objects {
-		var objectParts = strings.Split(v, ",")
-		if len(objectParts) > 1 {
-
-			parts := strings.Split(objectParts[1], "@")
-			if len(parts) > 1 {
-				volume := NedgeNFSVolume{VolumeID: service + "@" + parts[1], Share: "/" + parts[0], Path: parts[1]}
-				volumes = append(volumes, volume)
-			}
-		}
-	}
-	return volumes, err
+	return serviceObj.NFSVolumes, err
 }
 
 func basicAuth(username, password string) string {
