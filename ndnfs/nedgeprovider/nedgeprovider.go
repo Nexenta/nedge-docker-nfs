@@ -132,8 +132,8 @@ func (nedge *NexentaEdgeProvider) CheckHealth() (err error) {
 	body, err := nedge.doNedgeRequest("GET", path, nil)
 
 	if err != nil {
-		err = fmt.Errorf("Failed to send request %s, err: %s\n", path, err.Error)
-		log.Error(err.Error)
+		err = fmt.Errorf("Failed to send request %s, err: %s\n", path, err)
+		log.Error(err)
 		return err
 	}
 
@@ -146,7 +146,7 @@ func (nedge *NexentaEdgeProvider) CheckHealth() (err error) {
 	if r["response"] == nil {
 
 		err = fmt.Errorf("No response for CheckHealth call: %s", path)
-		log.Debug(err.Error)
+		log.Debug(err)
 		return err
 	}
 
