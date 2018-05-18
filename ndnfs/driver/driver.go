@@ -114,13 +114,15 @@ func (d NdnfsDriver) Create(r *volume.CreateRequest) (err error) {
 	}
 
 	// setup quota configuration
-	if quota, ok := r.Options["size"]; ok {
-		err = d.Nedge.SetServiceAclConfiguration(volID.Cluster, volID.Tenant, volID.Bucket, quota)
-		if err != nil {
-			log.Error(err)
-			return err
+	/*
+		if quota, ok := r.Options["size"]; ok {
+			err = d.Nedge.SetQ(volID.Cluster, volID.Tenant, volID.Bucket, quota)
+			if err != nil {
+				log.Error(err)
+				return err
+			}
 		}
-	}
+	*/
 
 	//setup service configuration
 	if r.Options["acl"] != "" {

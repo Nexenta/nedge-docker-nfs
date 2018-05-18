@@ -510,7 +510,7 @@ func (nedge *NexentaEdgeProvider) ListServiceVolumes(service string) (volumes []
 
 			parts := strings.Split(objectParts[1], "@")
 			if len(parts) > 1 {
-				volume := NedgeNFSVolume{VolumeID: parts[1], Share: "/" + parts[0], Path: parts[1]}
+				volume := NedgeNFSVolume{VolumeID: service + "@" + parts[1], Share: "/" + parts[0], Path: parts[1]}
 				volumes = append(volumes, volume)
 			}
 		}
@@ -574,7 +574,7 @@ func (nedge *NexentaEdgeProvider) Request(method, restpath string, data map[stri
 		return nil, err
 	}
 	body, err = ioutil.ReadAll(resp.Body)
-	log.Debug("Got response, code: ", resp.StatusCode, ", body: ", string(body))
+	//log.Debug("Got response, code: ", resp.StatusCode, ", body: ", string(body))
 	nedge.checkError(resp)
 	defer resp.Body.Close()
 	if err != nil {
