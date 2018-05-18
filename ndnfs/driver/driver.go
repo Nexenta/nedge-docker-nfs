@@ -2,7 +2,6 @@ package driver
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"os/exec"
@@ -192,18 +191,13 @@ func (d NdnfsDriver) ListVolumes() (vmap map[string]string, err error) {
 	for _, service := range services {
 		if service.ServiceType == "nfs" && service.Status == "enabled" {
 
-			volumes, err := d.Nedge.ListServiceVolumes(service.Name)
-			if err != nil {
-				log.Panic("Failed to retrieve service list", err)
-				return vmap, err
-			}
-
-			for _, volume := range volumes {
+			for _, volume := range service.NFSVolumes {
 				vname := volume.VolumeID
 				_, nfsEndpoint, err := service.GetNFSVolumeAndEndpoint(vname)
 				if err == nil {
 					vmap[vname] = nfsEndpoint
 				}
+
 			}
 		}
 	}
@@ -245,7 +239,7 @@ func (d NdnfsDriver) Mount(r *volume.MountRequest) (*volume.MountResponse, error
 		log.Debug(DN, "Mounting Volume ", r.Name)
 		args := []string{"-t", "nfs", nfsEndpoint, mnt}
 		if out, err := exec.Command("mount", args...).CombinedOutput(); err != nil {
-			err = errors.New(fmt.Sprintf("%s: %s", err, out))
+			err = fmt.Errorf("%s: %s", err, out)
 			log.Panic("Error running mount command: ", err, "{", string(out), "}")
 		}
 	}

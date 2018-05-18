@@ -70,7 +70,6 @@ type INexentaEdgeProvider interface {
 	UnserveBucket(service string, cluster string, tenant string, bucket string) (err error)
 	SetServiceAclConfiguration(service string, tenant string, bucket string, value string) error
 	UnsetServiceAclConfiguration(service string, tenant string, bucket string) error
-	ListServiceVolumes(service string) (volumes []NedgeNFSVolume, err error)
 	ListServices() (services []NedgeService, err error)
 	GetService(serviceName string) (service NedgeService, err error)
 	CheckHealth() (err error)
@@ -267,10 +266,23 @@ func (nedge *NexentaEdgeProvider) GetService(serviceName string) (service NedgeS
 		return service, err
 	}
 
-	status := serviceVal["X-Status"].(string)
-	serviceType := serviceVal["X-Service-Type"].(string)
+	service, err = GetServiceData(serviceVal)
+	if err != nil {
+		err = fmt.Errorf("Can't get service data Error: %s", err)
+		log.Error(err)
+		return service, err
+	}
+	return service, err
+}
 
-	service = NedgeService{Name: serviceName, ServiceType: serviceType, Status: status, Network: make([]string, 0), NFSVolumes: make([]NedgeNFSVolume, 0)}
+func GetServiceData(serviceVal map[string]interface{}) (service NedgeService, err error) {
+
+	service.Name = serviceVal["X-Service-Name"].(string)
+	service.Status = serviceVal["X-Status"].(string)
+	service.ServiceType = serviceVal["X-Service-Type"].(string)
+
+	service.Network = make([]string, 0)
+	service.NFSVolumes = make([]NedgeNFSVolume, 0)
 
 	if xvip, ok := serviceVal["X-VIPS"].(string); ok {
 
@@ -309,9 +321,8 @@ func (nedge *NexentaEdgeProvider) GetService(serviceName string) (service NedgeS
 	return service, err
 }
 
-/*ListServices DOES not return service network and service objects
-That info could be achived by GetService
-*/
+/*ListServices
+ */
 func (nedge *NexentaEdgeProvider) ListServices() (services []NedgeService, err error) {
 	log.Info("ListServices: ")
 
@@ -339,14 +350,14 @@ func (nedge *NexentaEdgeProvider) ListServices() (services []NedgeService, err e
 	}
 
 	if servicesJSON, ok := data.(map[string]interface{}); ok {
-		for srvName, serviceObj := range servicesJSON {
+		for _, serviceObj := range servicesJSON {
 
 			if serviceVal, ok := serviceObj.(map[string]interface{}); ok {
-				status := serviceVal["X-Status"].(string)
-				serviceType := serviceVal["X-Service-Type"].(string)
 
-				service := NedgeService{Name: srvName, ServiceType: serviceType, Status: status}
-				services = append(services, service)
+				service, err := GetServiceData(serviceVal)
+				if err == nil {
+					services = append(services, service)
+				}
 			}
 		}
 	}
@@ -464,16 +475,6 @@ func (nedge *NexentaEdgeProvider) ListTenants(cluster string) (tenants []string,
 
 	log.Debugf("Tenant list for cluster %s", cluster)
 	return tenants, err
-}
-
-func (nedge *NexentaEdgeProvider) ListServiceVolumes(service string) (volumes []NedgeNFSVolume, err error) {
-
-	serviceObj, err := nedge.GetService(service)
-	if err != nil {
-		return volumes, err
-	}
-
-	return serviceObj.NFSVolumes, err
 }
 
 func basicAuth(username, password string) string {
