@@ -41,7 +41,7 @@ type Config struct {
 	Password    string
 	Mountpoint  string
 	Service_Filter string
-	ServiceFilter []string
+	ServiceFilter map[string]bool
 }
 
 type VolumeID struct {
@@ -101,6 +101,8 @@ func ReadParseConfig(fname string) (config Config) {
 		msg := fmt.Sprintf("Error parsing config file: %s, Error: %s \n ", fname, err)
 		log.Fatal(DN, msg)
 	}
+
+	conf.ServiceFilter = make(map[string]bool)
 	return conf
 }
 
@@ -116,7 +118,7 @@ func DriverAlloc(cfgFile string) (driver NdnfsDriver) {
 	if conf.Service_Filter != "" {
 		services := strings.Split(conf.Service_Filter, ",")
 		for _, srvName := range services {
-			conf.ServiceFilter = append(conf.ServiceFilter, strings.TrimSpace(srvName))
+			conf.ServiceFilter[strings.TrimSpace(srvName)] = true
 		}
 	}
 
@@ -510,12 +512,6 @@ func (d NdnfsDriver) Unmount(r *volume.UnmountRequest) (err error) {
 	if err != nil {
 		return err
 	}
-	/*
-	_, nfsEndpoint, err := d.GetVolumeByID(r.Name)
-	if err != nil {
-		return err
-	}
-	*/
 
 	mnt := filepath.Join(d.Config.Mountpoint, volID.GetObjectPath())
 	if out, err := exec.Command("umount", mnt).CombinedOutput(); err != nil {
@@ -637,6 +633,13 @@ func (d NdnfsDriver) ListServices() (services []NedgeService, err error) {
 	}
 
 	for srvName, serviceObj := range data.(map[string]interface{}) {
+
+		//if ServiceFilter not empty, skip every service not entered in list(map)
+		if len(d.Config.ServiceFilter) > 0  {
+			if _, ok := d.Config.ServiceFilter[srvName]; !ok {
+				continue
+			}
+		}
 
 		serviceVal := serviceObj.(map[string]interface{})
 		status := serviceVal["X-Status"].(string)
