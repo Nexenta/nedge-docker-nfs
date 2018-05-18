@@ -11,8 +11,8 @@ import (
 	"sync"
 
 	"github.com/Nexenta/nedge-docker-nfs/ndnfs/nedgeprovider"
+	log "github.com/Sirupsen/logrus"
 	"github.com/docker/go-plugins-helpers/volume"
-	log "github.com/sirupsen/logrus"
 )
 
 const defaultChunkSize int = 1048576
@@ -33,6 +33,7 @@ type NdnfsDriver struct {
 type Config struct {
 	Name           string
 	Nedgerest      string
+	Nedgeport      int16
 	Chunksize      int
 	Username       string
 	Password       string
@@ -113,15 +114,13 @@ func (d NdnfsDriver) Create(r *volume.CreateRequest) (err error) {
 	}
 
 	// setup quota configuration
-	/*
-		if quota, ok := r.Options["size"]; ok {
-			err = d.Nedge.SetServiceAclConfiguration(volID.Cluster, volID.Tenant, volID.Bucket, quota)
-			if err != nil {
-				log.Error(err)
-				return err
-			}
+	if quota, ok := r.Options["size"]; ok {
+		err = d.Nedge.SetServiceAclConfiguration(volID.Cluster, volID.Tenant, volID.Bucket, quota)
+		if err != nil {
+			log.Error(err)
+			return err
 		}
-	*/
+	}
 
 	//setup service configuration
 	if r.Options["acl"] != "" {
@@ -131,7 +130,7 @@ func (d NdnfsDriver) Create(r *volume.CreateRequest) (err error) {
 		}
 	}
 
-	err = d.Nedge.ServeService(volID.Service, volID.Cluster, volID.Tenant, volID.Bucket)
+	err = d.Nedge.ServeBucket(volID.Service, volID.Cluster, volID.Tenant, volID.Bucket)
 	if err != nil {
 		log.Error(err)
 	}
@@ -268,7 +267,7 @@ func (d NdnfsDriver) Remove(r *volume.RemoveRequest) error {
 		return err
 	}
 
-	service, err := d.Nedge.GetService(volID.Service)
+	_, err = d.Nedge.GetService(volID.Service)
 	if err != nil {
 		return err
 	}
@@ -290,7 +289,7 @@ func (d NdnfsDriver) Unmount(r *volume.UnmountRequest) (err error) {
 	d.Mutex.Lock()
 	defer d.Mutex.Unlock()
 
-	volID, err := ParseVolumeID(r.Name)
+	volID, err := nedgeprovider.ParseVolumeID(r.Name)
 	if err != nil {
 		return err
 	}
