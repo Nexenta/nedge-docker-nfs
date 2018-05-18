@@ -115,7 +115,6 @@ func DriverAlloc(cfgFile string) (driver NdnfsDriver) {
 		conf.Mountpoint = defaultMountPoint
 	}
 
-
 	if conf.Service_Filter != "" {
 		services := strings.Split(conf.Service_Filter, ",")
 		for _, srvName := range services {
