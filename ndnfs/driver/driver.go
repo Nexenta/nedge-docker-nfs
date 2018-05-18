@@ -152,7 +152,12 @@ func (d NdnfsDriver) Get(r *volume.GetRequest) (*volume.GetResponse, error) {
 		return &volume.GetResponse{}, err
 	}
 
-	nfsVolume, nfsEndpoint, err := service.GetNFSVolumeAndEndpoint(r.Name)
+	nfsVolumes, err := d.Nedge.ListNFSVolumes(volID.Service)
+	if err != nil {
+		return &volume.GetResponse{}, err
+	}
+
+	nfsVolume, nfsEndpoint, err := service.GetNFSVolumeAndEndpoint(r.Name, service, nfsVolumes)
 	if err != nil {
 		return &volume.GetResponse{}, err
 	}
@@ -189,15 +194,14 @@ func (d NdnfsDriver) ListVolumes() (vmap map[string]string, err error) {
 	}
 
 	for _, service := range services {
-		if service.ServiceType == "nfs" && service.Status == "enabled" {
+		if service.ServiceType == "nfs" && service.Status == "enabled" && len(service.Network) > 0 {
 
-			for _, volume := range service.NFSVolumes {
-				vname := volume.VolumeID
-				_, nfsEndpoint, err := service.GetNFSVolumeAndEndpoint(vname)
-				if err == nil {
-					vmap[vname] = nfsEndpoint
+			nfsVolumes, err := d.Nedge.ListNFSVolumes(service.Name)
+			if err == nil {
+				for _, volume := range nfsVolumes {
+					vname := volume.VolumeID
+					vmap[vname] = fmt.Sprintf("%s:%s", service.Network[0], volume.Share)
 				}
-
 			}
 		}
 	}
@@ -223,7 +227,12 @@ func (d NdnfsDriver) Mount(r *volume.MountRequest) (*volume.MountResponse, error
 		return &volume.MountResponse{}, err
 	}
 
-	_, nfsEndpoint, err := service.GetNFSVolumeAndEndpoint(r.Name)
+	nfsVolumes, err := d.Nedge.ListNFSVolumes(volID.Service)
+	if err != nil {
+		return &volume.MountResponse{}, err
+	}
+
+	_, nfsEndpoint, err := service.GetNFSVolumeAndEndpoint(r.Name, service, nfsVolumes)
 	if err != nil {
 		return &volume.MountResponse{}, err
 	}

@@ -36,12 +36,11 @@ type NedgeService struct {
 	ServiceType string
 	Status      string
 	Network     []string
-	NFSVolumes  []NedgeNFSVolume
 }
 
-func (nedgeService *NedgeService) FindNFSVolumeByVolumeID(volumeID string) (resultNfsVolume NedgeNFSVolume, err error) {
+func (nedgeService *NedgeService) FindNFSVolumeByVolumeID(volumeID string, nfsVolumes []NedgeNFSVolume) (resultNfsVolume NedgeNFSVolume, err error) {
 
-	for _, nfsVolume := range nedgeService.NFSVolumes {
+	for _, nfsVolume := range nfsVolumes {
 		if nfsVolume.VolumeID == volumeID {
 			return nfsVolume, nil
 		}
@@ -49,13 +48,13 @@ func (nedgeService *NedgeService) FindNFSVolumeByVolumeID(volumeID string) (resu
 	return resultNfsVolume, errors.New("Can't find NFS volume by volumeID :" + volumeID)
 }
 
-func (nedgeService *NedgeService) GetNFSVolumeAndEndpoint(volumeID string) (nfsVolume NedgeNFSVolume, endpoint string, err error) {
-	nfsVolume, err = nedgeService.FindNFSVolumeByVolumeID(volumeID)
+func (nedgeService *NedgeService) GetNFSVolumeAndEndpoint(volumeID string, service NedgeService, nfsVolumes []NedgeNFSVolume) (nfsVolume NedgeNFSVolume, endpoint string, err error) {
+	nfsVolume, err = nedgeService.FindNFSVolumeByVolumeID(volumeID, nfsVolumes)
 	if err != nil {
 		return nfsVolume, "", err
 	}
 
-	return nfsVolume, fmt.Sprintf("%s:%s", nedgeService.Network[0], nfsVolume.Share), err
+	return nfsVolume, fmt.Sprintf("%s:%s", service.Network[0], nfsVolume.Share), err
 }
 
 /*INexentaEdge interface to provide base methods */
@@ -72,6 +71,7 @@ type INexentaEdgeProvider interface {
 	UnsetServiceAclConfiguration(service string, tenant string, bucket string) error
 	ListServices() (services []NedgeService, err error)
 	GetService(serviceName string) (service NedgeService, err error)
+	ListNFSVolumes(serviceName string) (nfsVolumes []NedgeNFSVolume, err error)
 	CheckHealth() (err error)
 }
 
@@ -266,24 +266,15 @@ func (nedge *NexentaEdgeProvider) GetService(serviceName string) (service NedgeS
 		return service, err
 	}
 
-	service, err = GetServiceData(serviceVal)
-	if err != nil {
-		err = fmt.Errorf("Can't get service data Error: %s", err)
-		log.Error(err)
-		return service, err
-	}
-	return service, err
-}
-
-func GetServiceData(serviceVal map[string]interface{}) (service NedgeService, err error) {
-
 	service.Name = serviceVal["X-Service-Name"].(string)
 	service.Status = serviceVal["X-Status"].(string)
 	service.ServiceType = serviceVal["X-Service-Type"].(string)
+	service.Network = GetServiceNetwork(serviceVal)
 
-	service.Network = make([]string, 0)
-	service.NFSVolumes = make([]NedgeNFSVolume, 0)
+	return service, err
+}
 
+func GetServiceNetwork(serviceVal map[string]interface{}) (networks []string) {
 	if xvip, ok := serviceVal["X-VIPS"].(string); ok {
 
 		VIP := getVipIPFromString(xvip)
@@ -293,7 +284,7 @@ func GetServiceData(serviceVal map[string]interface{}) (service NedgeService, er
 			if subnetIndex > 0 {
 				VIP := VIP[:subnetIndex]
 				log.Infof("X-VIP is: %s\n", VIP)
-				service.Network = append(service.Network, VIP)
+				networks = append(networks, VIP)
 			}
 		}
 	} else {
@@ -301,21 +292,23 @@ func GetServiceData(serviceVal map[string]interface{}) (service NedgeService, er
 		for key, val := range serviceVal {
 			if strings.HasPrefix(key, "X-Container-Network-") {
 				if strings.HasPrefix(val.(string), "client-net --ip ") {
-					service.Network = append(service.Network, strings.TrimPrefix(val.(string), "client-net --ip "))
+					networks = append(networks, strings.TrimPrefix(val.(string), "client-net --ip "))
 					continue
 				}
 			}
 		}
 
 	}
+	return networks
+}
 
-	// Object format: "<id>,<ten/buc>@<clu/ten/buc>""
-	if objects, ok := serviceVal["X-Service-Objects"].(string); ok {
-		nfsVolumes, err := getXServiceObjectsFromString(service.Name, objects)
-		if err == nil {
-			service.NFSVolumes = nfsVolumes
-		}
-	}
+func GetServiceData(serviceVal map[string]interface{}) (service NedgeService, err error) {
+
+	service.Name = serviceVal["X-Service-Name"].(string)
+	service.Status = serviceVal["X-Status"].(string)
+	service.ServiceType = serviceVal["X-Service-Type"].(string)
+
+	service.Network = make([]string, 0)
 
 	log.Debugf("Service : %+v\n", service)
 	return service, err
@@ -354,7 +347,12 @@ func (nedge *NexentaEdgeProvider) ListServices() (services []NedgeService, err e
 
 			if serviceVal, ok := serviceObj.(map[string]interface{}); ok {
 
-				service, err := GetServiceData(serviceVal)
+				var service NedgeService
+				service.Name = serviceVal["X-Service-Name"].(string)
+				service.Status = serviceVal["X-Status"].(string)
+				service.ServiceType = serviceVal["X-Service-Type"].(string)
+				service.Network = GetServiceNetwork(serviceVal)
+
 				if err == nil {
 					services = append(services, service)
 				}
@@ -364,6 +362,47 @@ func (nedge *NexentaEdgeProvider) ListServices() (services []NedgeService, err e
 
 	log.Debugf("ServiceList : %+v\n", services)
 	return services, err
+}
+
+func (nedge *NexentaEdgeProvider) ListNFSVolumes(serviceName string) (nfsVolumes []NedgeNFSVolume, err error) {
+	path := fmt.Sprintf("service/%s", serviceName)
+	body, err := nedge.doNedgeRequest("GET", path, nil)
+
+	r := make(map[string]map[string]interface{})
+	jsonerr := json.Unmarshal(body, &r)
+
+	if jsonerr != nil {
+		log.Error(jsonerr)
+		return nfsVolumes, jsonerr
+	}
+
+	data := r["response"]["data"]
+	if data == nil {
+		err = fmt.Errorf("No response.data object found for GetService request")
+		log.Debug(err.Error)
+		return nfsVolumes, err
+	}
+
+	serviceVal := data.(map[string]interface{})
+	if serviceVal == nil {
+		err = fmt.Errorf("No service data object found")
+		log.Debug(err.Error)
+		return nfsVolumes, err
+	}
+
+	if serviceVal["X-Service-Type"].(string) != "nfs" {
+		return nfsVolumes, err
+	}
+
+	// Object format: "<id>,<ten/buc>@<clu/ten/buc>""
+	if objects, ok := serviceVal["X-Service-Objects"].(string); ok {
+		volumes, err := getXServiceObjectsFromString(serviceName, objects)
+		if err == nil {
+			nfsVolumes = volumes
+		}
+	}
+
+	return nfsVolumes, err
 }
 
 func (nedge *NexentaEdgeProvider) ServeBucket(service string, cluster string, tenant string, bucket string) (err error) {
