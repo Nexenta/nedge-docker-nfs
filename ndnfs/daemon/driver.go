@@ -2,7 +2,7 @@ package daemon
 
 import (
 	"fmt"
-	log "github.com/Sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	"sync"
 	"github.com/docker/go-plugins-helpers/volume"
 	"github.com/Nexenta/nedge-docker-nfs/ndnfs/ndnfsapi"
