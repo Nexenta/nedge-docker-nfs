@@ -301,9 +301,7 @@ func (nedge *NexentaEdgeProvider) GetService(serviceName string) (service NedgeS
 	if objects, ok := serviceVal["X-Service-Objects"].(string); ok {
 		nfsVolumes, err := getXServiceObjectsFromString(service.Name, objects)
 		if err == nil {
-			for _, volume := range nfsVolumes {
-				service.NFSVolumes = append(service.NFSVolumes, volume)
-			}
+			service.NFSVolumes = nfsVolumes
 		}
 	}
 
