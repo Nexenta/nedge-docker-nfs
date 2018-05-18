@@ -298,16 +298,11 @@ func (nedge *NexentaEdgeProvider) GetService(serviceName string) (service NedgeS
 	}
 
 	// Object format: "<id>,<ten/buc>@<clu/ten/buc>""
-	if objects, ok := serviceVal["X-Service-Objects"].([]string); ok {
-		for _, v := range objects {
-			var objectParts = strings.Split(v, ",")
-			if len(objectParts) == 2 {
-
-				parts := strings.Split(objectParts[1], "@")
-				if len(parts) > 1 {
-					nfsVolume := NedgeNFSVolume{VolumeID: parts[1], Share: "/" + parts[0], Path: parts[1]}
-					service.NFSVolumes = append(service.NFSVolumes, nfsVolume)
-				}
+	if objects, ok := serviceVal["X-Service-Objects"].(string); ok {
+		nfsVolumes, err := getXServiceObjectsFromString(service.Name, objects)
+		if err == nil {
+			for _, volume := range nfsVolumes {
+				service.NFSVolumes = append(service.NFSVolumes, volume)
 			}
 		}
 	}
@@ -575,7 +570,6 @@ func getXServiceObjectsFromString(service string, xObjects string) (nfsVolumes [
 	}
 
 	// Object format: "<id>,<ten/buc>@<clu/ten/buc>""
-
 	for _, v := range objects {
 		var objectParts = strings.Split(v, ",")
 		if len(objectParts) == 2 {
