@@ -190,7 +190,7 @@ func (d NdnfsDriver) ListVolumes() (vmap map[string]string, err error) {
 	}
 
 	for _, service := range services {
-		if service.ServiceType == "nfs" && service.Status == "enabled" && len(service.Network) > 0 {
+		if service.ServiceType == "nfs" && service.Status == "enabled" {
 
 			volumes, err := d.Nedge.ListServiceVolumes(service.Name)
 			if err != nil {
