@@ -77,6 +77,15 @@ func ClientAlloc(configFile string) (c *Client, err error) {
 	return NdnfsClient, nil
 }
 
+func parseBooleanOption(encryptionOption string) string {
+	if encryptionOption != "" {
+		if encryptionOption == "1" || strings.ToLower(encryptionOption) == "true" {
+			return "1"
+		}
+	}
+	return "0"
+}
+
 func basicAuth(username, password string) string {
 	auth := username + ":" + password
 	return base64.StdEncoding.EncodeToString([]byte(auth))
@@ -163,6 +172,21 @@ func (c *Client) CreateVolume(name string, options map[string]string) (err error
 
 		data["bucketName"] = name
 		data["optionsObject"] = map[string]int{"ccow-chunkmap-chunk-size": chunkSizeInt}
+		// enabled encryption tied with enc
+		if encryption, ok := options["enableEncryption"]; ok {
+			data["optionsObject"].(map[string]interface{})["ccow-encryption-enabled"] = parseBooleanOption(encryption)
+		}
+
+		// erasure coding block tied with erasure mode
+		if erasureCoding, ok := options["enableErasure"]; ok {
+			data["optionsObject"].(map[string]interface{})["ccow-ec-enabled"] = parseBooleanOption(erasureCoding)
+			if erasureMode, ok := options["erasureMode"]; ok {
+				data["optionsObject"].(map[string]interface{})["ccow-ec-data-mode"] = erasureMode
+			} else {
+				return errors.New("Cannot enable Erasure Coding without additional option erasureMode. 'erasureMode' available values:[\"4:2:rs\", \"6:2:rs\", \"9:3:rs\"]")
+			}
+		}
+
 		url := fmt.Sprintf("clusters/%s/tenants/%s/buckets", cluster, tenant)
 
 		body, err := c.Request("POST", url, data)
