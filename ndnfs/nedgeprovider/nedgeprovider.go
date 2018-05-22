@@ -160,6 +160,15 @@ func (nedge *NexentaEdgeProvider) CheckHealth() (err error) {
 	return nil
 }
 
+func parseBooleanOption(encryptionOption string) string {
+	if encryptionOption != "" {
+		if encryptionOption == "1" || strings.ToLower(encryptionOption) == "true" {
+			return "1"
+		}
+	}
+	return "0"
+}
+
 /*CreateBucket creates new bucket on NexentaEdge clusters
 option parameters:
 	chunksize: 	chunksize in bytes
@@ -188,6 +197,20 @@ func (nedge *NexentaEdgeProvider) CreateBucket(clusterName string, tenantName st
 		err = errors.New("Chunksize must be in range of 4096 - 1048576 and be a power of 2")
 		log.Error(err)
 		return err
+	}
+
+	// enabled encryption tied with enc
+	if encryption, ok := options["enableEncryption"]; ok {
+		data["optionsObject"].(map[string]interface{})["ccow-encryption-enabled"] = parseBooleanOption(encryption)
+
+	}
+
+	// erasure coding block tied with erasure mode
+	if erasureCoding, ok := options["enableErasure"]; ok {
+		data["optionsObject"].(map[string]interface{})["ccow-ec-enabled"] = parseBooleanOption(erasureCoding)
+		if erasureMode, ok := options["enableMode"]; ok {
+			data["optionsObject"].(map[string]interface{})["ccow-ec-data-mode"] = erasureMode
+		}
 	}
 
 	data["optionsObject"].(map[string]interface{})["ccow-chunkmap-chunk-size"] = chunkSize
