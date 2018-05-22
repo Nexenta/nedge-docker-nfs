@@ -208,7 +208,7 @@ func (nedge *NexentaEdgeProvider) CreateBucket(clusterName string, tenantName st
 	// erasure coding block tied with erasure mode
 	if erasureCoding, ok := options["enableErasure"]; ok {
 		data["optionsObject"].(map[string]interface{})["ccow-ec-enabled"] = parseBooleanOption(erasureCoding)
-		if erasureMode, ok := options["enableMode"]; ok {
+		if erasureMode, ok := options["erasureMode"]; ok {
 			data["optionsObject"].(map[string]interface{})["ccow-ec-data-mode"] = erasureMode
 		}
 	}
