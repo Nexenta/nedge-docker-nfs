@@ -67,6 +67,7 @@ type INexentaEdgeProvider interface {
 	DeleteBucket(cluster string, tenant string, bucket string) error
 	ServeBucket(service string, cluster string, tenant string, bucket string) (err error)
 	UnserveBucket(service string, cluster string, tenant string, bucket string) (err error)
+	SetBucketQuota(cluster string, tenant string, bucket string, quota string) (err error)
 	SetServiceAclConfiguration(service string, tenant string, bucket string, value string) error
 	UnsetServiceAclConfiguration(service string, tenant string, bucket string) error
 	ListServices() (services []NedgeService, err error)
@@ -222,6 +223,17 @@ func (nedge *NexentaEdgeProvider) UnsetServiceAclConfiguration(service string, t
 	log.Infof("UnsetServiceAclConfiguration: serviceName:%s, path: %s/%s ", service, tenant, bucket)
 	log.Infof("UnsetServiceAclConfiguration: %s ", aclName)
 	return nedge.setServiceConfigParam(service, aclName, "")
+}
+
+func (nedge *NexentaEdgeProvider) SetBucketQuota(cluster string, tenant string, bucket string, quota string) (err error) {
+	path := fmt.Sprintf("clusters/%s/tenants/%s/buckets/%s/quota", cluster, tenant, bucket)
+
+	data := make(map[string]interface{})
+	data["quota"] = quota
+
+	log.Infof("SetBucketQuota: path: %s ", path)
+	_, err = nedge.doNedgeRequest("PUT", path, data)
+	return err
 }
 
 func (nedge *NexentaEdgeProvider) setServiceConfigParam(service string, parameter string, value string) (err error) {
