@@ -33,15 +33,15 @@ type NdnfsDriver struct {
 }
 
 type Config struct {
-	Name        string
-	Nedgerest   string
-	Nedgeport   int16
-	Chunksize   int
-	Username    string
-	Password    string
-	Mountpoint  string
+	Name           string
+	Nedgerest      string
+	Nedgeport      int16
+	Chunksize      int
+	Username       string
+	Password       string
+	Mountpoint     string
 	Service_Filter string
-	ServiceFilter map[string]bool
+	ServiceFilter  map[string]bool
 }
 
 type VolumeID struct {
@@ -131,6 +131,15 @@ func DriverAlloc(cfgFile string) (driver NdnfsDriver) {
 		Config:       &conf,
 	}
 	return driver
+}
+
+func parseBooleanOption(encryptionOption string) string {
+	if encryptionOption != "" {
+		if encryptionOption == "1" || strings.ToLower(encryptionOption) == "true" {
+			return "1"
+		}
+	}
+	return "0"
 }
 
 func (d *NdnfsDriver) setUpAclParams(serviceName string, tenantName string, bucketName string, value string) (err error) {
@@ -275,6 +284,21 @@ func (d NdnfsDriver) Create(r *volume.CreateRequest) (err error) {
 		log.Info("Bucket doesnt exist")
 		data["bucketName"] = volID.Bucket
 		data["optionsObject"] = map[string]int{"ccow-chunkmap-chunk-size": chunkSizeInt}
+
+		if encryption, ok := r.Options["enableEncryption"]; ok {
+			data["optionsObject"].(map[string]interface{})["ccow-encryption-enabled"] = parseBooleanOption(encryption)
+		}
+
+		// erasure coding block tied with erasure mode
+		if erasureCoding, ok := r.Options["enableErasure"]; ok {
+			data["optionsObject"].(map[string]interface{})["ccow-ec-enabled"] = parseBooleanOption(erasureCoding)
+			if erasureMode, ok := r.Options["erasureMode"]; ok {
+				data["optionsObject"].(map[string]interface{})["ccow-ec-data-mode"] = erasureMode
+			} else {
+				return errors.New("Cannot enable Erasure Coding without additional option erasureMode. 'erasureMode' available values:[\"4:2:rs\", \"6:2:rs\", \"9:3:rs\"]")
+			}
+		}
+
 		url := fmt.Sprintf("clusters/%s/tenants/%s/buckets", volID.Cluster, volID.Tenant)
 
 		body, err := d.Request("POST", url, data)
@@ -635,7 +659,7 @@ func (d NdnfsDriver) ListServices() (services []NedgeService, err error) {
 	for srvName, serviceObj := range data.(map[string]interface{}) {
 
 		//if ServiceFilter not empty, skip every service not entered in list(map)
-		if len(d.Config.ServiceFilter) > 0  {
+		if len(d.Config.ServiceFilter) > 0 {
 			if _, ok := d.Config.ServiceFilter[srvName]; !ok {
 				continue
 			}
