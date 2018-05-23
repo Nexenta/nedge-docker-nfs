@@ -38,7 +38,7 @@ type Config struct {
 	Password       string
 	Mountpoint     string
 	Service_Filter string
-	ServiceFilter  map[string]bool
+	ServiceFilter  map[string]bool `json:"-"`
 }
 
 func ReadParseConfig(fname string) (config Config) {
@@ -192,6 +192,14 @@ func (d NdnfsDriver) ListVolumes() (vmap map[string]string, err error) {
 	}
 
 	for _, service := range services {
+
+		//if ServiceFilter not empty, skip every service not presented in list(map)
+		if len(d.Config.ServiceFilter) > 0 {
+			if _, ok := d.Config.ServiceFilter[service.Name]; !ok {
+				continue
+			}
+		}
+
 		if service.ServiceType == "nfs" && service.Status == "enabled" && len(service.Network) > 0 {
 
 			nfsVolumes, err := d.Nedge.ListNFSVolumes(service.Name)
