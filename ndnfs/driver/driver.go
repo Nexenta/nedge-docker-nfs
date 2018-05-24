@@ -685,30 +685,22 @@ func (d NdnfsDriver) ListServices() (services []NedgeService, err error) {
 					continue
 				}
 			}
-
-			/*
-				log.Infof("Item is %+v\n", xvip)
-				ipMatch := "\"ip\":\""
-				ipPos := strings.Index(xvip, ipMatch)
-				ipLast := xvip[ipPos + len(ipMatch):]
-				ipPos =  strings.Index(ipLast, "/")
-				vipIP := ipLast[:ipPos]
-
-				log.Infof("VipIP: %s\n", vipIP)
-
-				service.Network = append(service.Network, vipIP)
-				services = append(services, service)
-				continue
-			*/
 		}
 
-		// gets all repetitive props
-		for key, val := range serviceVal {
+		if xServers, ok := serviceVal["X-Servers"].(string); ok {
 
-			if strings.HasPrefix(key, "X-Container-Network-") {
-				if strings.HasPrefix(val.(string), "client-net --ip ") {
-					service.Network = append(service.Network, strings.TrimPrefix(val.(string), "client-net --ip "))
-					continue
+			//there should be one server for nfs service
+			containerNetwork := fmt.Sprintf("X-Container-Network-%s", xServers)
+			for key, val := range serviceVal {
+				if key == containerNetwork {
+					//split multiple networks by semicolon
+					containerNetworks := strings.Split(val.(string), ";")
+					for _, network := range containerNetworks {
+						if strings.HasPrefix(network, "client-net --ip ") {
+							service.Network = append(service.Network, strings.TrimPrefix(network, "client-net --ip "))
+							continue
+						}
+					}
 				}
 			}
 		}
