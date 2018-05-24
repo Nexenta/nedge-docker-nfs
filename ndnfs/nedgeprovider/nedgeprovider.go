@@ -326,11 +326,21 @@ func GetServiceNetwork(serviceVal map[string]interface{}) (networks []string) {
 		}
 	} else {
 		// gets all repetitive props
-		for key, val := range serviceVal {
-			if strings.HasPrefix(key, "X-Container-Network-") {
-				if strings.HasPrefix(val.(string), "client-net --ip ") {
-					networks = append(networks, strings.TrimPrefix(val.(string), "client-net --ip "))
-					continue
+
+		if xServers, ok := serviceVal["X-Servers"].(string); ok {
+
+			//there should be one server for nfs service
+			containerNetwork := fmt.Sprintf("X-Container-Network-%s", xServers)
+			for key, val := range serviceVal {
+				if key == containerNetwork {
+					//split multiple networks by semicolon
+					containerNetworks := strings.Split(val.(string), ";")
+					for _, network := range containerNetworks {
+						if strings.HasPrefix(network, "client-net --ip ") {
+							networks = append(networks, strings.TrimPrefix(network, "client-net --ip "))
+							continue
+						}
+					}
 				}
 			}
 		}
