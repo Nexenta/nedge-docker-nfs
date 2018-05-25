@@ -11,7 +11,7 @@ import (
 	"strings"
 
 	"github.com/Nexenta/nedge-docker-nfs/ndnfs/nedgeprovider"
-	log "github.com/sirupsen/logrus"
+	log "github.com/Sirupsen/logrus"
 )
 
 const defaultMountPoint string = "/var/lib/ndnfs"
@@ -26,17 +26,19 @@ type Client struct {
 }
 
 type Config struct {
-	Name        string // ndnfs
-	Nedgerest   string // localhost
-	Nedgedata   string // localhost
-	Nedgeport   int16  // 8080
-	Clustername string
-	Tenantname  string
-	Chunksize   int
-	Username    string
-	Password    string
-	Mountpoint  string
-	Servicename string
+	Name           string // ndnfs
+	Nedgerest      string // localhost
+	Nedgedata      string // localhost
+	Nedgeport      int16  // 8080
+	Clustername    string
+	Tenantname     string
+	Chunksize      int
+	Username       string
+	Password       string
+	Mountpoint     string
+	Servicename    string
+	Service_Filter string
+	ServiceFilter  map[string]bool `json:"-"`
 }
 
 func ReadParseConfig(fname string) (Config, error) {
@@ -84,7 +86,7 @@ func (c *Client) CreateVolume(name string, options map[string]string) (err error
 	}
 
 	if quota, ok := options["size"]; ok {
-		err = c.Nedge.SetBucketQuota(cluster, tenant, name, quota, options["quota_count"])
+		err = c.Nedge.SetBucketQuota(cluster, tenant, name, quota)
 		if err != nil {
 			log.Error(err)
 			return err
@@ -99,7 +101,7 @@ func (c *Client) CreateVolume(name string, options map[string]string) (err error
 		}
 	}
 
-	c.Nedge.ServeService(service, cluster, tenant, name)
+	c.Nedge.ServeBucket(service, cluster, tenant, name)
 	if err != nil {
 		log.Error(err)
 		return err
@@ -123,7 +125,7 @@ func (c *Client) DeleteVolume(name string) (err error) {
 		return err
 	}
 
-	err = c.Nedge.UnserveService(service, cluster, tenant, name)
+	err = c.Nedge.UnserveBucket(service, cluster, tenant, name)
 	if err != nil {
 		log.Errorf("Error unserve bucket %s Error: %+v", name, err)
 		return err
@@ -209,7 +211,7 @@ func (c *Client) GetNfsList() (nfsList []string, err error) {
 		service = os.Getenv("CCOW_SVCNAME")
 	}
 
-	volumes, err := c.Nedge.GetNfsVolumes(service)
+	volumes, err := c.Nedge.ListNFSVolumes(service)
 
 	// list of shares
 	for _, nedgeVolume := range volumes {
