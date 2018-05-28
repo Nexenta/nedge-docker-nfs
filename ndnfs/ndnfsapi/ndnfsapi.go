@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"syscall"
 
 	"github.com/Nexenta/nedge-docker-nfs/ndnfs/nedgeprovider"
 	log "github.com/Sirupsen/logrus"
@@ -140,6 +141,23 @@ func (c *Client) DeleteVolume(name string) (err error) {
 	return err
 }
 
+func IsNfsMountExist(mount string) bool {
+	cmd := fmt.Sprintf("mount | agrep -w %s", strings.TrimRight(mount, "/"))
+	if out, err := exec.Command("sh", "-c", cmd).CombinedOutput(); err != nil {
+
+		if msg, ok := err.(*exec.ExitError); ok { // there is error code
+			exitStatus := msg.Sys().(syscall.WaitStatus).ExitStatus()
+			// log errors only when something goes wrong, not errorCode==1
+			if exitStatus != 1 {
+				log.Error("Error running mount command: ", err, "{", string(out), "}")
+			}
+		}
+	} else {
+		return true
+	}
+	return false
+}
+
 func (c *Client) MountVolume(name string) (mnt string, err error) {
 	log.Debug(DN, "Mounting Volume ", name)
 
@@ -167,17 +185,23 @@ func (c *Client) MountVolume(name string) (mnt string, err error) {
 func (c *Client) UnmountVolume(name string) (err error) {
 
 	mnt := filepath.Join(c.Config.Mountpoint, name)
-	log.Info(DN, " Mountpoint to delete : ", mnt)
-	if out, err := exec.Command("rm", "-rf", mnt).CombinedOutput(); err != nil {
-		log.Info("Error running rm command: ", err, "{", string(out), "}")
+
+	if IsNfsMountExist(mnt) {
+
+		log.Debug(DN, "Unmounting Volume ", name)
+		nfs := fmt.Sprintf("%s:/%s/%s", c.Config.Nedgedata, c.Config.Tenantname, name)
+		if out, err := exec.Command("umount", nfs).CombinedOutput(); err != nil {
+			log.Error("Error running umount command: ", err, "{", string(out), "}")
+		}
 	}
 
-	log.Debug(DN, "Unmounting Volume ", name)
-	nfs := fmt.Sprintf("%s:/%s/%s", c.Config.Nedgedata, c.Config.Tenantname, name)
-	if out, err := exec.Command("umount", nfs).CombinedOutput(); err != nil {
-		log.Error("Error running umount command: ", err, "{", string(out), "}")
+	// check folder exists
+	if _, err := os.Stat(mnt); os.IsExist(err) {
+		log.Info(DN, " Mountpoint to delete : ", mnt)
+		if out, err := exec.Command("rmdir", mnt).CombinedOutput(); err != nil {
+			log.Info("Error running rmdir command: ", err, "{", string(out), "}")
+		}
 	}
-
 	return err
 }
 
