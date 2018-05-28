@@ -142,7 +142,7 @@ func (c *Client) DeleteVolume(name string) (err error) {
 }
 
 func IsNfsMountExist(mount string) bool {
-	cmd := fmt.Sprintf("mount | agrep -w %s", strings.TrimRight(mount, "/"))
+	cmd := fmt.Sprintf("mount | grep -w %s", strings.TrimRight(mount, "/"))
 	if out, err := exec.Command("sh", "-c", cmd).CombinedOutput(); err != nil {
 
 		if msg, ok := err.(*exec.ExitError); ok { // there is error code
