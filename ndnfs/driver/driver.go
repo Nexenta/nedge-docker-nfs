@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"syscall"
 
 	"github.com/Nexenta/nedge-docker-nfs/ndnfs/nedgeprovider"
 	log "github.com/Sirupsen/logrus"
@@ -295,6 +296,23 @@ func (d NdnfsDriver) Remove(r *volume.RemoveRequest) error {
 	return err
 }
 
+func IsNfsMountExist(mount string) bool {
+	cmd := fmt.Sprintf("mount | grep -w %s", strings.TrimRight(mount, "/"))
+	if out, err := exec.Command("sh", "-c", cmd).CombinedOutput(); err != nil {
+
+		if msg, ok := err.(*exec.ExitError); ok { // there is error code
+			exitStatus := msg.Sys().(syscall.WaitStatus).ExitStatus()
+			// log errors only when something goes wrong, not errorCode==1
+			if exitStatus != 1 {
+				log.Error("Error running mount command: ", err, "{", string(out), "}")
+			}
+		}
+	} else {
+		return true
+	}
+	return false
+}
+
 func (d NdnfsDriver) Unmount(r *volume.UnmountRequest) (err error) {
 	log.Info(DN, "Unmount volume: ", r.Name)
 	d.Mutex.Lock()
@@ -306,10 +324,12 @@ func (d NdnfsDriver) Unmount(r *volume.UnmountRequest) (err error) {
 	}
 
 	mnt := filepath.Join(d.Config.Mountpoint, volID.GetObjectPath())
-	if out, err := exec.Command("umount", mnt).CombinedOutput(); err != nil {
-		log.Error("Error running umount command: ", err, "{", string(out), "}")
-	} else {
-		if out, err := exec.Command("rm", "-rf", mnt).CombinedOutput(); err != nil {
+	if IsNfsMountExist(mnt) {
+		if out, err := exec.Command("umount", mnt).CombinedOutput(); err != nil {
+			log.Error("Error running umount command: ", err, "{", string(out), "}")
+		}
+
+		if out, err := exec.Command("rmdir", mnt).CombinedOutput(); err != nil {
 			log.Info("Error running rm command: ", err, "{", string(out), "}")
 		}
 	}
