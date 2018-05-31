@@ -165,7 +165,7 @@ func ParseVolumeID(volumeID string, configOptions map[string]string) (resultObje
 		}
 
 		//Tenant
-		resultObject.Cluster = pathObjects[1]
+		resultObject.Tenant = pathObjects[1]
 		if resultObject.Tenant == "" {
 			if tenant, ok := configOptions["tenant"]; ok {
 				resultObject.Tenant = tenant
