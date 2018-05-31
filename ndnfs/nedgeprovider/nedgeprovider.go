@@ -101,28 +101,113 @@ func InitNexentaEdgeProvider(restip string, port int16, username string, passwor
 	return nexentaEdgeProviderInstance
 }
 
-func ParseVolumeID(volumeID string) (resultObject VolumeID, err error) {
+func NewVolumeID(service string, cluster string, tenant, string, bucket string) *VolumeID {
+	volID := new(VolumeID)
+	volID.Service = service
+	volID.Cluster = cluster
+	volID.Tenant = tenant
+	volID.Bucket = bucket
+
+	return volID
+}
+
+func ParseVolumeID(volumeID string, configOptions map[string]string) (resultObject VolumeID, err error) {
 	parts := strings.Split(volumeID, "@")
-	if len(parts) != 2 {
-		err := errors.New("Wrong format of object path. Path must be in format service@cluster/tenant/bucket")
-		return resultObject, err
+
+	// object path elements like cluster/tenant/bucket
+	var pathObjects []string
+	if len(parts) < 2 {
+		// no service notation
+		if service, ok := configOptions["service"]; ok {
+			resultObject.Service = service
+		}
+		pathObjects = strings.Split(parts[0], "/")
+	} else {
+		pathObjects = strings.Split(parts[1], "/")
 	}
 
-	pathObjects := strings.Split(parts[1], "/")
-	if len(pathObjects) != 3 {
-		err := errors.New("Wrong format of object path. Path must be in format service@cluster/tenant/bucket")
-		return resultObject, err
+	// bucket only
+	if len(pathObjects) == 1 {
+		if cluster, ok := configOptions["cluster"]; ok {
+			resultObject.Cluster = cluster
+		}
+
+		if tenant, ok := configOptions["tenant"]; ok {
+			resultObject.Tenant = tenant
+		}
+
+		resultObject.Bucket = pathObjects[0]
+	} else if len(pathObjects) == 2 {
+		// tenant and bucket only
+
+		if cluster, ok := configOptions["cluster"]; ok {
+			resultObject.Cluster = cluster
+		}
+
+		resultObject.Tenant = pathObjects[0]
+		if resultObject.Tenant == "" {
+			if tenant, ok := configOptions["tenant"]; ok {
+				resultObject.Tenant = tenant
+			}
+		}
+
+		resultObject.Bucket = pathObjects[1]
+	} else {
+		// cluster, tenant and bucket
+
+		//Cluster
+		resultObject.Cluster = pathObjects[0]
+		if resultObject.Cluster == "" {
+			if cluster, ok := configOptions["cluster"]; ok {
+				resultObject.Cluster = cluster
+			}
+		}
+
+		//Tenant
+		resultObject.Cluster = pathObjects[1]
+		if resultObject.Tenant == "" {
+			if tenant, ok := configOptions["tenant"]; ok {
+				resultObject.Tenant = tenant
+			}
+		}
+
+		//Bucket
+		resultObject.Bucket = pathObjects[2]
 	}
 
-	resultObject.Service = parts[0]
-	resultObject.Cluster = pathObjects[0]
-	resultObject.Tenant = pathObjects[1]
-	resultObject.Bucket = pathObjects[2]
+	err = resultObject.Validate()
 
 	return resultObject, err
 }
 
-func (path *VolumeID) GetObjectPath() string {
+func (volumeID *VolumeID) Validate() error {
+
+	var missingParts []string
+	if volumeID.Service == "" {
+		missingParts = append(missingParts, "service")
+	}
+
+	if volumeID.Cluster == "" {
+		missingParts = append(missingParts, "cluster")
+	}
+
+	if volumeID.Tenant == "" {
+		missingParts = append(missingParts, "tenant")
+	}
+
+	if volumeID.Bucket == "" {
+		missingParts = append(missingParts, "bucket")
+	}
+
+	if len(missingParts) > 0 {
+		missingString := strings.Join(missingParts[:], ",")
+		err := fmt.Errorf("VolumeID are missing %s part(s), check object path or your ndnfs.json options", missingString)
+		return err
+	}
+	return nil
+}
+
+func (path *VolumeID) String() string {
 	return fmt.Sprintf("%s@%s/%s/%s", path.Service, path.Cluster, path.Tenant, path.Bucket)
 }
 

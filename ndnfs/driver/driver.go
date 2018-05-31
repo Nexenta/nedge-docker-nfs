@@ -244,7 +244,7 @@ func (d NdnfsDriver) Mount(r *volume.MountRequest) (*volume.MountResponse, error
 		return &volume.MountResponse{}, err
 	}
 
-	mnt = filepath.Join(d.Config.Mountpoint, volID.GetObjectPath())
+	mnt = filepath.Join(d.Config.Mountpoint, volID.String())
 	log.Infof(DN, "Creating mountpoint folder:%s to remote share %s ", mnt, nfsEndpoint)
 	if out, err := exec.Command("mkdir", "-p", mnt).CombinedOutput(); err != nil {
 		log.Info("Error running mkdir command: ", err, "{", string(out), "}")
@@ -323,7 +323,7 @@ func (d NdnfsDriver) Unmount(r *volume.UnmountRequest) (err error) {
 		return err
 	}
 
-	mnt := filepath.Join(d.Config.Mountpoint, volID.GetObjectPath())
+	mnt := filepath.Join(d.Config.Mountpoint, volID.String())
 	if IsNfsMountExist(mnt) {
 		if out, err := exec.Command("umount", mnt).CombinedOutput(); err != nil {
 			log.Error("Error running umount command: ", err, "{", string(out), "}")
