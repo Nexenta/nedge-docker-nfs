@@ -124,9 +124,13 @@ func (d NdnfsDriver) Create(r *volume.CreateRequest) (err error) {
 		if len(missedPathParts) == 1 {
 			if _, ok := missedPathParts["service"]; ok {
 				volID.Service = "nfs01"
+			} else {
+				return err
 			}
+		} else {
+			return err
 		}
-		return err
+
 	}
 
 	log.Infof("Parsed volume: %+v", volID)
