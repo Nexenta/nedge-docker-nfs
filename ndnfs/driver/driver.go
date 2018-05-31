@@ -34,6 +34,9 @@ type Config struct {
 	Name           string
 	Nedgerest      string
 	Nedgeport      int16
+	Service        string
+	Cluster        string
+	Tenant         string
 	Chunksize      int
 	Username       string
 	Password       string
@@ -86,6 +89,23 @@ func DriverAlloc(cfgFile string) (driver NdnfsDriver) {
 	return driver
 }
 
+func (d NdnfsDriver) PrepareConfigMap() map[string]string {
+	configMap := make(map[string]string)
+	if d.Config.Service != "" {
+		configMap["service"] = d.Config.Service
+	}
+
+	if d.Config.Cluster != "" {
+		configMap["cluster"] = d.Config.Cluster
+	}
+
+	if d.Config.Tenant != "" {
+		configMap["tenant"] = d.Config.Tenant
+	}
+
+	return configMap
+}
+
 func (d NdnfsDriver) Capabilities() *volume.CapabilitiesResponse {
 	log.Debug(DN, "Received Capabilities req")
 	return &volume.CapabilitiesResponse{Capabilities: volume.Capability{Scope: d.Scope}}
@@ -96,7 +116,8 @@ func (d NdnfsDriver) Create(r *volume.CreateRequest) (err error) {
 	d.Mutex.Lock()
 	defer d.Mutex.Unlock()
 
-	volID, err := nedgeprovider.ParseVolumeID(r.Name)
+	configMap := d.PrepareConfigMap()
+	volID, err := nedgeprovider.ParseVolumeID(r.Name, configMap)
 	if err != nil {
 		return err
 	}
@@ -141,7 +162,7 @@ func (d NdnfsDriver) Create(r *volume.CreateRequest) (err error) {
 func (d NdnfsDriver) Get(r *volume.GetRequest) (*volume.GetResponse, error) {
 	log.Debug(DN, "Get volume: ", r.Name)
 
-	volID, err := nedgeprovider.ParseVolumeID(r.Name)
+	volID, err := nedgeprovider.ParseVolumeID(r.Name, nil)
 	if err != nil {
 		return &volume.GetResponse{}, err
 	}
@@ -224,7 +245,7 @@ func (d NdnfsDriver) Mount(r *volume.MountRequest) (*volume.MountResponse, error
 	var mnt string
 	var err error
 
-	volID, err := nedgeprovider.ParseVolumeID(r.Name)
+	volID, err := nedgeprovider.ParseVolumeID(r.Name, nil)
 	if err != nil {
 		return &volume.MountResponse{}, err
 	}
@@ -239,7 +260,7 @@ func (d NdnfsDriver) Mount(r *volume.MountRequest) (*volume.MountResponse, error
 		return &volume.MountResponse{}, err
 	}
 
-	_, nfsEndpoint, err := service.GetNFSVolumeAndEndpoint(r.Name, service, nfsVolumes)
+	_, nfsEndpoint, err := service.GetNFSVolumeAndEndpoint(volID.String(), service, nfsVolumes)
 	if err != nil {
 		return &volume.MountResponse{}, err
 	}
@@ -249,10 +270,10 @@ func (d NdnfsDriver) Mount(r *volume.MountRequest) (*volume.MountResponse, error
 	if out, err := exec.Command("mkdir", "-p", mnt).CombinedOutput(); err != nil {
 		log.Info("Error running mkdir command: ", err, "{", string(out), "}")
 	}
-	log.Debug(DN, "Checking if volume is mounted ", r.Name)
+	log.Debug(DN, "Checking if volume is mounted ", volID.String())
 	out, err := exec.Command("mount").CombinedOutput()
 	if !strings.Contains(string(out), mnt) {
-		log.Debug(DN, "Mounting Volume ", r.Name)
+		log.Debug(DN, "Mounting Volume ", volID.String())
 		args := []string{"-t", "nfs", nfsEndpoint, mnt}
 		if out, err := exec.Command("mount", args...).CombinedOutput(); err != nil {
 			err = fmt.Errorf("%s: %s", err, out)
@@ -265,7 +286,13 @@ func (d NdnfsDriver) Mount(r *volume.MountRequest) (*volume.MountResponse, error
 func (d NdnfsDriver) Path(r *volume.PathRequest) (*volume.PathResponse, error) {
 	log.Info(DN, "Path volume: ", r.Name)
 	var err error
-	mnt := fmt.Sprintf("%s/%s", d.Config.Mountpoint, r.Name)
+
+	volID, err := nedgeprovider.ParseVolumeID(r.Name, nil)
+	if err != nil {
+		return &volume.PathResponse{}, err
+	}
+
+	mnt := fmt.Sprintf("%s/%s", d.Config.Mountpoint, volID.String())
 	return &volume.PathResponse{Mountpoint: mnt}, err
 }
 
@@ -274,7 +301,7 @@ func (d NdnfsDriver) Remove(r *volume.RemoveRequest) error {
 	d.Mutex.Lock()
 	defer d.Mutex.Unlock()
 
-	volID, err := nedgeprovider.ParseVolumeID(r.Name)
+	volID, err := nedgeprovider.ParseVolumeID(r.Name, nil)
 	if err != nil {
 		return err
 	}
@@ -318,7 +345,7 @@ func (d NdnfsDriver) Unmount(r *volume.UnmountRequest) (err error) {
 	d.Mutex.Lock()
 	defer d.Mutex.Unlock()
 
-	volID, err := nedgeprovider.ParseVolumeID(r.Name)
+	volID, err := nedgeprovider.ParseVolumeID(r.Name, nil)
 	if err != nil {
 		return err
 	}

@@ -124,6 +124,11 @@ func ParseVolumeID(volumeID string, configOptions map[string]string) (resultObje
 		pathObjects = strings.Split(parts[0], "/")
 	} else {
 		resultObject.Service = parts[0]
+		if resultObject.Service == "" {
+			if service, ok := configOptions["service"]; ok {
+				resultObject.Service = service
+			}
+		}
 		pathObjects = strings.Split(parts[1], "/")
 	}
 
