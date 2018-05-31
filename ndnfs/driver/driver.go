@@ -117,8 +117,15 @@ func (d NdnfsDriver) Create(r *volume.CreateRequest) (err error) {
 	defer d.Mutex.Unlock()
 
 	configMap := d.PrepareConfigMap()
-	volID, err := nedgeprovider.ParseVolumeID(r.Name, configMap)
+	volID, missedPathParts, err := nedgeprovider.ParseVolumeID(r.Name, configMap)
 	if err != nil {
+
+		// Only service missed in path notation, we should select appropriate service for new volume
+		if len(missedPathParts) == 1 {
+			if _, ok := missedPathParts["service"]; ok {
+
+			}
+		}
 		return err
 	}
 
@@ -162,7 +169,7 @@ func (d NdnfsDriver) Create(r *volume.CreateRequest) (err error) {
 func (d NdnfsDriver) Get(r *volume.GetRequest) (*volume.GetResponse, error) {
 	log.Debug(DN, "Get volume: ", r.Name)
 
-	volID, err := nedgeprovider.ParseVolumeID(r.Name, nil)
+	volID, _, err := nedgeprovider.ParseVolumeID(r.Name, nil)
 	if err != nil {
 		return &volume.GetResponse{}, err
 	}
@@ -245,7 +252,7 @@ func (d NdnfsDriver) Mount(r *volume.MountRequest) (*volume.MountResponse, error
 	var mnt string
 	var err error
 
-	volID, err := nedgeprovider.ParseVolumeID(r.Name, nil)
+	volID, _, err := nedgeprovider.ParseVolumeID(r.Name, nil)
 	if err != nil {
 		return &volume.MountResponse{}, err
 	}
@@ -287,7 +294,7 @@ func (d NdnfsDriver) Path(r *volume.PathRequest) (*volume.PathResponse, error) {
 	log.Info(DN, "Path volume: ", r.Name)
 	var err error
 
-	volID, err := nedgeprovider.ParseVolumeID(r.Name, nil)
+	volID, _, err := nedgeprovider.ParseVolumeID(r.Name, nil)
 	if err != nil {
 		return &volume.PathResponse{}, err
 	}
@@ -301,7 +308,7 @@ func (d NdnfsDriver) Remove(r *volume.RemoveRequest) error {
 	d.Mutex.Lock()
 	defer d.Mutex.Unlock()
 
-	volID, err := nedgeprovider.ParseVolumeID(r.Name, nil)
+	volID, _, err := nedgeprovider.ParseVolumeID(r.Name, nil)
 	if err != nil {
 		return err
 	}
@@ -345,7 +352,7 @@ func (d NdnfsDriver) Unmount(r *volume.UnmountRequest) (err error) {
 	d.Mutex.Lock()
 	defer d.Mutex.Unlock()
 
-	volID, err := nedgeprovider.ParseVolumeID(r.Name, nil)
+	volID, _, err := nedgeprovider.ParseVolumeID(r.Name, nil)
 	if err != nil {
 		return err
 	}

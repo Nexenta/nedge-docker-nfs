@@ -111,7 +111,7 @@ func NewVolumeID(service string, cluster string, tenant, string, bucket string) 
 	return volID
 }
 
-func ParseVolumeID(volumeID string, configOptions map[string]string) (resultObject VolumeID, err error) {
+func ParseVolumeID(volumeID string, configOptions map[string]string) (resultObject VolumeID, missedParts map[string]bool, err error) {
 	parts := strings.Split(volumeID, "@")
 
 	// object path elements like cluster/tenant/bucket
@@ -181,36 +181,41 @@ func ParseVolumeID(volumeID string, configOptions map[string]string) (resultObje
 		resultObject.Bucket = pathObjects[2]
 	}
 
-	err = resultObject.Validate()
+	missedParts, err = resultObject.Validate()
 
-	return resultObject, err
+	return resultObject, missedParts, err
 }
 
-func (volumeID *VolumeID) Validate() error {
+func (volumeID *VolumeID) Validate() (map[string]bool, error) {
 
-	var missingParts []string
+	var missingParts map[string]bool
 	if volumeID.Service == "" {
-		missingParts = append(missingParts, "service")
+		missingParts["service"] = true
 	}
 
 	if volumeID.Cluster == "" {
-		missingParts = append(missingParts, "cluster")
+		missingParts["cluster"] = true
 	}
 
 	if volumeID.Tenant == "" {
-		missingParts = append(missingParts, "tenant")
+		missingParts["tenant"] = true
 	}
 
 	if volumeID.Bucket == "" {
-		missingParts = append(missingParts, "bucket")
+		missingParts["bucket"] = true
 	}
 
 	if len(missingParts) > 0 {
-		missingString := strings.Join(missingParts[:], ",")
+		missingString := "["
+		for key := range missingParts {
+			missingString += " " + key
+		}
+		missingString += " ]"
+
 		err := fmt.Errorf("VolumeID are missing %s part(s), check object path or your ndnfs.json options", missingString)
-		return err
+		return missingParts, err
 	}
-	return nil
+	return missingParts, nil
 }
 
 func (path *VolumeID) String() string {
