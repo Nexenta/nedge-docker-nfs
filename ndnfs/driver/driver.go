@@ -123,7 +123,7 @@ func (d NdnfsDriver) Create(r *volume.CreateRequest) (err error) {
 		// Only service missed in path notation, we should select appropriate service for new volume
 		if len(missedPathParts) == 1 {
 			if _, ok := missedPathParts["service"]; ok {
-
+				volID.Service = "nfs"
 			}
 		}
 		return err
