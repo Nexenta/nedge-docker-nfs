@@ -188,7 +188,7 @@ func ParseVolumeID(volumeID string, configOptions map[string]string) (resultObje
 
 func (volumeID *VolumeID) Validate() (map[string]bool, error) {
 
-	var missingParts map[string]bool
+	missingParts := make(map[string]bool)
 	if volumeID.Service == "" {
 		missingParts["service"] = true
 	}
