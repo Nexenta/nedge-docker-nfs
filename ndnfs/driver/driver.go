@@ -45,11 +45,6 @@ type Config struct {
 	ServiceFilter  map[string]bool `json:"-"`
 }
 
-type NfsServiceData struct {
-	Service    nedgeprovider.NedgeService
-	NfsVolumes []nedgeprovider.NedgeNFSVolume
-}
-
 func ReadParseConfig(fname string) (config Config) {
 	content, err := ioutil.ReadFile(fname)
 	if err != nil {
@@ -219,60 +214,13 @@ func (d NdnfsDriver) List() (*volume.ListResponse, error) {
 	return &volume.ListResponse{Volumes: vols}, err
 }
 
-/*FindApropriateService find service with minimal export count*/
-func (d NdnfsDriver) FindApropriateService() (nedgeprovider.NedgeService, error) {
+func (d NdnfsDriver) GetClusterData() (ClusterData, error) {
 
-	var minService nedgeprovider.NedgeService
-
-	servicesData, err := d.ListNfsServicesData()
-	if err != nil {
-		log.Panic("Failed to retrieve services data", err)
-		return minService, err
-	}
-
-	if len(servicesData) > 0 {
-		minService := servicesData[0]
-
-		for _, data := range servicesData[1:] {
-			currentValue := len(data.NfsVolumes)
-			if len(minService.NfsVolumes) > currentValue {
-				minService = data
-			}
-		}
-	} else {
-		return minService, fmt.Errorf("No NFS Services available along nedge cluster")
-	}
-
-	return minService, nil
-}
-
-func (d NdnfsDriver) FindServiceByPath(cluster string, tenant string, bucket string) (result nedgeprovider.NedgeService, err error) {
-	log.Debug(DN, "FindServiceByPath ")
-	searchedPath := fmt.Sprintf("%s/%s/%s", cluster, tenant, bucket)
-
-	servicesData, err := d.ListNfsServicesData()
-	if err != nil {
-		log.Panic("Failed to retrieve services data", err)
-		return result, err
-	}
-
-	for _, data := range servicesData {
-		for _, nfsVolume := range data.NfsVolumes {
-			if nfsVolume.Path == searchedPath {
-				result = data.Service
-				return result, nil
-			}
-		}
-	}
-
-	return result, fmt.Errorf("Can't find NFS service by path %s", searchedPath)
-}
-
-func (d NdnfsDriver) ListNfsServicesData() (sd []NfsServiceData, err error) {
+	clusterData := ClusterData{nfsServicesData: []NfsServiceData{}}
 	services, err := d.Nedge.ListServices()
 	if err != nil {
 		log.Panic("Failed to retrieve service list", err)
-		return sd, err
+		return clusterData, err
 	}
 
 	for _, service := range services {
@@ -293,12 +241,12 @@ func (d NdnfsDriver) ListNfsServicesData() (sd []NfsServiceData, err error) {
 				for _, volume := range nfsVolumes {
 					nfsServiceData.NfsVolumes = append(nfsServiceData.NfsVolumes, volume)
 				}
-				sd = append(sd, nfsServiceData)
+				clusterData.nfsServicesData = append(clusterData.nfsServicesData, nfsServiceData)
 			}
 		}
 
 	}
-	return sd, nil
+	return clusterData, nil
 }
 
 func (d NdnfsDriver) ListVolumes() (vmap map[string]string, err error) {
@@ -306,19 +254,21 @@ func (d NdnfsDriver) ListVolumes() (vmap map[string]string, err error) {
 
 	vmap = make(map[string]string)
 
-	servicesData, err := d.ListNfsServicesData()
+	clusterData, err := d.GetClusterData()
 	if err != nil {
 		log.Panic("Failed to retrieve services data", err)
 		return vmap, err
 	}
 
-	for _, data := range servicesData {
-		for _, nfsVolume := range data.NfsVolumes {
-			vname := nfsVolume.VolumeID
-			vmap[vname] = fmt.Sprintf("%s:%s", data.Service.Network[0], nfsVolume.Share)
+	clusterData.FillNfsVolumes(vmap)
+	/*
+		for _, data := range servicesData {
+			for _, nfsVolume := range data.NfsVolumes {
+				vname := nfsVolume.VolumeID
+				vmap[vname] = fmt.Sprintf("%s:%s", data.Service.Network[0], nfsVolume.Share)
+			}
 		}
-	}
-
+	*/
 	log.Debug(vmap)
 	return vmap, err
 }
