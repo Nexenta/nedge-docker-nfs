@@ -22,7 +22,7 @@ func (clusterData ClusterData) FindApropriateServiceData() (*NfsServiceData, err
 	var minService *NfsServiceData
 
 	if len(clusterData.nfsServicesData) > 0 {
-		minService := &clusterData.nfsServicesData[0]
+		minService = &clusterData.nfsServicesData[0]
 
 		for _, data := range clusterData.nfsServicesData[1:] {
 			currentValue := len(data.NfsVolumes)
