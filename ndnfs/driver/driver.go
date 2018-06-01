@@ -34,7 +34,6 @@ type Config struct {
 	Name           string
 	Nedgerest      string
 	Nedgeport      int16
-	Service        string
 	Cluster        string
 	Tenant         string
 	Chunksize      int
@@ -91,9 +90,6 @@ func DriverAlloc(cfgFile string) (driver NdnfsDriver) {
 
 func (d NdnfsDriver) PrepareConfigMap() map[string]string {
 	configMap := make(map[string]string)
-	if d.Config.Service != "" {
-		configMap["service"] = d.Config.Service
-	}
 
 	if d.Config.Cluster != "" {
 		configMap["cluster"] = d.Config.Cluster
@@ -112,7 +108,7 @@ func (d NdnfsDriver) Capabilities() *volume.CapabilitiesResponse {
 }
 
 func (d NdnfsDriver) Create(r *volume.CreateRequest) (err error) {
-	log.Debugf(fmt.Sprintf("Create volume %s using %s with options: %s", r.Name, DN, r.Options))
+	log.Debugf("Create volume %s using %s with options: %s", r.Name, DN, r.Options)
 	d.Mutex.Lock()
 	defer d.Mutex.Unlock()
 
@@ -214,10 +210,20 @@ func (d NdnfsDriver) List() (*volume.ListResponse, error) {
 	return &volume.ListResponse{Volumes: vols}, err
 }
 
-func (d NdnfsDriver) GetClusterData() (ClusterData, error) {
+/*GetClusterData if serviceName specified we will get data from the one service only */
+func (d NdnfsDriver) GetClusterData(serviceName ...string) (ClusterData, error) {
 
 	clusterData := ClusterData{nfsServicesData: []NfsServiceData{}}
-	services, err := d.Nedge.ListServices()
+	var err error
+	services := []nedgeprovider.NedgeService{}
+	if len(serviceName) > 0 {
+		service, retError := d.Nedge.GetService(serviceName[0])
+		err = retError
+		services[0] = service
+	} else {
+		services, err = d.Nedge.ListServices()
+	}
+
 	if err != nil {
 		log.Panic("Failed to retrieve service list", err)
 		return clusterData, err
@@ -261,14 +267,7 @@ func (d NdnfsDriver) ListVolumes() (vmap map[string]string, err error) {
 	}
 
 	clusterData.FillNfsVolumes(vmap)
-	/*
-		for _, data := range servicesData {
-			for _, nfsVolume := range data.NfsVolumes {
-				vname := nfsVolume.VolumeID
-				vmap[vname] = fmt.Sprintf("%s:%s", data.Service.Network[0], nfsVolume.Share)
-			}
-		}
-	*/
+
 	log.Debug(vmap)
 	return vmap, err
 }
@@ -277,6 +276,7 @@ func (d NdnfsDriver) Mount(r *volume.MountRequest) (*volume.MountResponse, error
 	log.Info(DN, "Mount volume: ", r.Name)
 	d.Mutex.Lock()
 	defer d.Mutex.Unlock()
+
 	var mnt string
 	var err error
 
@@ -328,7 +328,7 @@ func (d NdnfsDriver) Mount(r *volume.MountRequest) (*volume.MountResponse, error
 }
 
 func (d NdnfsDriver) Path(r *volume.PathRequest) (*volume.PathResponse, error) {
-	log.Info(DN, "Path volume: ", r.Name)
+	log.Infof(DN, "Path volume: %s\n", r.Name)
 	var err error
 
 	configMap := d.PrepareConfigMap()
