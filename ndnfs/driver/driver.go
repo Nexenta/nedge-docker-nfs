@@ -131,6 +131,7 @@ func (d NdnfsDriver) Create(r *volume.CreateRequest) (err error) {
 
 	log.Infof("Parsed volume: %+v", volID)
 
+	r.Options["newOptions"] = "test"
 	log.Info("Creating bucket")
 	if !d.Nedge.IsBucketExist(volID.Cluster, volID.Tenant, volID.Bucket) {
 		log.Info("Bucket doesnt exist")
@@ -170,8 +171,19 @@ func (d NdnfsDriver) Get(r *volume.GetRequest) (*volume.GetResponse, error) {
 	log.Debug(DN, "Get volume: ", r.Name)
 
 	configMap := d.PrepareConfigMap()
-	volID, _, err := nedgeprovider.ParseVolumeID(r.Name, configMap)
+	volID, missedPathParts, err := nedgeprovider.ParseVolumeID(r.Name, configMap)
 	if err != nil {
+		// Only service missed in path notation, we should select appropriate service for new volume
+		if len(missedPathParts) == 1 {
+			if _, ok := missedPathParts["service"]; ok {
+				volID.Service = "nfs01"
+			} else {
+				return &volume.GetResponse{}, err
+			}
+		} else {
+			return &volume.GetResponse{}, err
+		}
+
 		return &volume.GetResponse{}, err
 	}
 
