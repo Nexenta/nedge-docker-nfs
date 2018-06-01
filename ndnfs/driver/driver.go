@@ -31,11 +31,11 @@ type NdnfsDriver struct {
 }
 
 type Config struct {
-	Name           string
-	Nedgerest      string
-	Nedgeport      int16
-	Cluster        string
-	Tenant         string
+	Name      string
+	Nedgerest string
+	Nedgeport int16
+	Cluster   string
+	//Tenant         string
 	Chunksize      int
 	Username       string
 	Password       string
@@ -94,10 +94,11 @@ func (d NdnfsDriver) PrepareConfigMap() map[string]string {
 	if d.Config.Cluster != "" {
 		configMap["cluster"] = d.Config.Cluster
 	}
-
-	if d.Config.Tenant != "" {
-		configMap["tenant"] = d.Config.Tenant
-	}
+	/*
+		if d.Config.Tenant != "" {
+			configMap["tenant"] = d.Config.Tenant
+		}
+	*/
 
 	return configMap
 }
@@ -278,7 +279,7 @@ func (d NdnfsDriver) ListVolumes() (vmap map[string]string, err error) {
 		return vmap, err
 	}
 
-	clusterData.FillNfsVolumes(vmap)
+	clusterData.FillNfsVolumes(vmap, d.Config.Cluster)
 
 	log.Debug(vmap)
 	return vmap, err
