@@ -132,7 +132,6 @@ func (d NdnfsDriver) Create(r *volume.CreateRequest) (err error) {
 
 	log.Infof("Parsed volume: %+v", volID)
 
-	r.Options["newOptions"] = "test"
 	log.Info("Creating bucket")
 	if !d.Nedge.IsBucketExist(volID.Cluster, volID.Tenant, volID.Bucket) {
 		log.Info("Bucket doesnt exist")
@@ -344,9 +343,17 @@ func (d NdnfsDriver) Path(r *volume.PathRequest) (*volume.PathResponse, error) {
 	var err error
 
 	configMap := d.PrepareConfigMap()
-	volID, _, err := nedgeprovider.ParseVolumeID(r.Name, configMap)
+	volID, missedPathParts, err := nedgeprovider.ParseVolumeID(r.Name, configMap)
 	if err != nil {
-		return &volume.PathResponse{}, err
+		if len(missedPathParts) == 1 {
+			if _, ok := missedPathParts["service"]; ok {
+				volID.Service = "nfs01"
+			} else {
+				return &volume.PathResponse{}, err
+			}
+		} else {
+			return &volume.PathResponse{}, err
+		}
 	}
 
 	mnt := fmt.Sprintf("%s/%s", d.Config.Mountpoint, volID.String())
@@ -359,9 +366,17 @@ func (d NdnfsDriver) Remove(r *volume.RemoveRequest) error {
 	defer d.Mutex.Unlock()
 
 	configMap := d.PrepareConfigMap()
-	volID, _, err := nedgeprovider.ParseVolumeID(r.Name, configMap)
+	volID, missedPathParts, err := nedgeprovider.ParseVolumeID(r.Name, configMap)
 	if err != nil {
-		return err
+		if len(missedPathParts) == 1 {
+			if _, ok := missedPathParts["service"]; ok {
+				volID.Service = "nfs01"
+			} else {
+				return err
+			}
+		} else {
+			return err
+		}
 	}
 
 	_, err = d.Nedge.GetService(volID.Service)
@@ -404,9 +419,17 @@ func (d NdnfsDriver) Unmount(r *volume.UnmountRequest) (err error) {
 	defer d.Mutex.Unlock()
 
 	configMap := d.PrepareConfigMap()
-	volID, _, err := nedgeprovider.ParseVolumeID(r.Name, configMap)
+	volID, missedPathParts, err := nedgeprovider.ParseVolumeID(r.Name, configMap)
 	if err != nil {
-		return err
+		if len(missedPathParts) == 1 {
+			if _, ok := missedPathParts["service"]; ok {
+				volID.Service = "nfs01"
+			} else {
+				return err
+			}
+		} else {
+			return err
+		}
 	}
 
 	mnt := filepath.Join(d.Config.Mountpoint, volID.String())
