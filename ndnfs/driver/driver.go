@@ -185,7 +185,6 @@ func (d NdnfsDriver) Get(r *volume.GetRequest) (*volume.GetResponse, error) {
 			return &volume.GetResponse{}, err
 		}
 
-		return &volume.GetResponse{}, err
 	}
 
 	service, err := d.Nedge.GetService(volID.Service)
