@@ -320,15 +320,15 @@ func (d NdnfsDriver) Mount(r *volume.MountRequest) (*volume.MountResponse, error
 		return &volume.MountResponse{}, err
 	}
 
-	mnt = filepath.Join(d.Config.Mountpoint, volID.String())
+	mnt = filepath.Join(d.Config.Mountpoint, volID.FullObjectPath())
 	log.Infof(DN, "Creating mountpoint folder:%s to remote share %s ", mnt, nfsEndpoint)
 	if out, err := exec.Command("mkdir", "-p", mnt).CombinedOutput(); err != nil {
 		log.Info("Error running mkdir command: ", err, "{", string(out), "}")
 	}
-	log.Debug(DN, "Checking if volume is mounted ", volID.String())
+	log.Debug(DN, "Checking if volume is mounted ", volID.FullObjectPath())
 	out, err := exec.Command("mount").CombinedOutput()
 	if !strings.Contains(string(out), mnt) {
-		log.Debug(DN, "Mounting Volume ", volID.String())
+		log.Debug(DN, "Mounting Volume ", volID.FullObjectPath())
 		args := []string{"-t", "nfs", nfsEndpoint, mnt}
 		if out, err := exec.Command("mount", args...).CombinedOutput(); err != nil {
 			err = fmt.Errorf("%s: %s", err, out)
@@ -356,7 +356,7 @@ func (d NdnfsDriver) Path(r *volume.PathRequest) (*volume.PathResponse, error) {
 		}
 	}
 
-	mnt := fmt.Sprintf("%s/%s", d.Config.Mountpoint, volID.String())
+	mnt := fmt.Sprintf("%s/%s", d.Config.Mountpoint, volID.FullObjectPath())
 	return &volume.PathResponse{Mountpoint: mnt}, err
 }
 
@@ -432,7 +432,7 @@ func (d NdnfsDriver) Unmount(r *volume.UnmountRequest) (err error) {
 		}
 	}
 
-	mnt := filepath.Join(d.Config.Mountpoint, volID.String())
+	mnt := filepath.Join(d.Config.Mountpoint, volID.FullObjectPath())
 	if IsNfsMountExist(mnt) {
 		if out, err := exec.Command("umount", mnt).CombinedOutput(); err != nil {
 			log.Error("Error running umount command: ", err, "{", string(out), "}")
