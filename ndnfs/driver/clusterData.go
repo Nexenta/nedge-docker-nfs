@@ -58,12 +58,12 @@ func (clusterData ClusterData) FillNfsVolumes(vmap map[string]string, defaultClu
 	for _, data := range clusterData.nfsServicesData {
 		for _, nfsVolume := range data.NfsVolumes {
 
-			volIDObj, _, _ := nedgeprovider.ParseVolumeID(nfsVolume.VolumeID, nil)
+			//volIDObj, _, _ := nedgeprovider.ParseVolumeID(nfsVolume.VolumeID.String(), nil)
 			var volumePath string
-			if defaultCluster != "" && volIDObj.Cluster == defaultCluster {
-				volumePath = fmt.Sprintf("%s/%s", volIDObj.Tenant, volIDObj.Bucket)
+			if defaultCluster != "" && nfsVolume.VolumeID.Cluster == defaultCluster {
+				volumePath = nfsVolume.VolumeID.FullObjectPath()
 			} else {
-				volumePath = fmt.Sprintf("%s/%s/%s", volIDObj.Cluster, volIDObj.Tenant, volIDObj.Bucket)
+				volumePath = nfsVolume.VolumeID.MinimalObjectPath()
 			}
 			vname := volumePath
 			vmap[vname] = fmt.Sprintf("%s:%s", data.Service.Network[0], nfsVolume.Share)

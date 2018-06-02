@@ -18,15 +18,8 @@ const (
 	defaultSize      int = 1024
 )
 
-type VolumeID struct {
-	Cluster string
-	Tenant  string
-	Bucket  string
-	Service string
-}
-
 type NedgeNFSVolume struct {
-	VolumeID string
+	VolumeID VolumeID
 	Path     string
 	Share    string
 }
@@ -41,7 +34,7 @@ type NedgeService struct {
 func (nedgeService *NedgeService) FindNFSVolumeByVolumeID(volumeID string, nfsVolumes []NedgeNFSVolume) (resultNfsVolume NedgeNFSVolume, err error) {
 
 	for _, nfsVolume := range nfsVolumes {
-		if nfsVolume.VolumeID == volumeID {
+		if nfsVolume.VolumeID.String() == volumeID {
 			return nfsVolume, nil
 		}
 	}
@@ -99,127 +92,6 @@ func InitNexentaEdgeProvider(restip string, port int16, username string, passwor
 	}
 
 	return nexentaEdgeProviderInstance
-}
-
-func NewVolumeID(service string, cluster string, tenant, string, bucket string) *VolumeID {
-	volID := new(VolumeID)
-	volID.Service = service
-	volID.Cluster = cluster
-	volID.Tenant = tenant
-	volID.Bucket = bucket
-
-	return volID
-}
-
-func ParseVolumeID(volumeID string, configOptions map[string]string) (resultObject VolumeID, missedParts map[string]bool, err error) {
-	parts := strings.Split(volumeID, "@")
-
-	// object path elements like cluster/tenant/bucket
-	var pathObjects []string
-	if len(parts) < 2 {
-		// no service notation
-		if service, ok := configOptions["service"]; ok {
-			resultObject.Service = service
-		}
-		pathObjects = strings.Split(parts[0], "/")
-	} else {
-		resultObject.Service = parts[0]
-		if resultObject.Service == "" {
-			if service, ok := configOptions["service"]; ok {
-				resultObject.Service = service
-			}
-		}
-		pathObjects = strings.Split(parts[1], "/")
-	}
-
-	// bucket only
-	if len(pathObjects) == 1 {
-		if cluster, ok := configOptions["cluster"]; ok {
-			resultObject.Cluster = cluster
-		}
-
-		if tenant, ok := configOptions["tenant"]; ok {
-			resultObject.Tenant = tenant
-		}
-
-		resultObject.Bucket = pathObjects[0]
-	} else if len(pathObjects) == 2 {
-		// tenant and bucket only
-
-		if cluster, ok := configOptions["cluster"]; ok {
-			resultObject.Cluster = cluster
-		}
-
-		resultObject.Tenant = pathObjects[0]
-		if resultObject.Tenant == "" {
-			if tenant, ok := configOptions["tenant"]; ok {
-				resultObject.Tenant = tenant
-			}
-		}
-
-		resultObject.Bucket = pathObjects[1]
-	} else {
-		// cluster, tenant and bucket
-
-		//Cluster
-		resultObject.Cluster = pathObjects[0]
-		if resultObject.Cluster == "" {
-			if cluster, ok := configOptions["cluster"]; ok {
-				resultObject.Cluster = cluster
-			}
-		}
-
-		//Tenant
-		resultObject.Tenant = pathObjects[1]
-		if resultObject.Tenant == "" {
-			if tenant, ok := configOptions["tenant"]; ok {
-				resultObject.Tenant = tenant
-			}
-		}
-
-		//Bucket
-		resultObject.Bucket = pathObjects[2]
-	}
-
-	missedParts, err = resultObject.Validate()
-
-	return resultObject, missedParts, err
-}
-
-func (volumeID *VolumeID) Validate() (map[string]bool, error) {
-
-	missingParts := make(map[string]bool)
-	if volumeID.Service == "" {
-		missingParts["service"] = true
-	}
-
-	if volumeID.Cluster == "" {
-		missingParts["cluster"] = true
-	}
-
-	if volumeID.Tenant == "" {
-		missingParts["tenant"] = true
-	}
-
-	if volumeID.Bucket == "" {
-		missingParts["bucket"] = true
-	}
-
-	if len(missingParts) > 0 {
-		missingString := "["
-		for key := range missingParts {
-			missingString += " " + key
-		}
-		missingString += " ]"
-
-		err := fmt.Errorf("VolumeID are missing %s part(s), check object path or your ndnfs.json options", missingString)
-		return missingParts, err
-	}
-	return missingParts, nil
-}
-
-func (path *VolumeID) String() string {
-	return fmt.Sprintf("%s@%s/%s/%s", path.Service, path.Cluster, path.Tenant, path.Bucket)
 }
 
 /*CheckHealth check connection to the nexentaedge cluster */
@@ -757,9 +629,14 @@ func getXServiceObjectsFromString(service string, xObjects string) (nfsVolumes [
 
 			parts := strings.Split(objectParts[1], "@")
 			if len(parts) == 2 {
-				share := "/" + parts[0]
-				volume := NedgeNFSVolume{VolumeID: fmt.Sprintf("%s@%s", service, parts[1]), Share: share, Path: parts[1]}
-				nfsVolumes = append(nfsVolumes, volume)
+				pathParts := strings.Split(parts[1], "/")
+				if len(pathParts) == 3 {
+					share := "/" + parts[0]
+					volume := NedgeNFSVolume{VolumeID: VolumeID{Service: service, Cluster: pathParts[0], Tenant: pathParts[1], Bucket: pathParts[2]},
+						Share: share,
+						Path:  parts[1]}
+					nfsVolumes = append(nfsVolumes, volume)
+				}
 			}
 		}
 	}

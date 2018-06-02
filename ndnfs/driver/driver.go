@@ -94,11 +94,6 @@ func (d NdnfsDriver) PrepareConfigMap() map[string]string {
 	if d.Config.Cluster != "" {
 		configMap["cluster"] = d.Config.Cluster
 	}
-	/*
-		if d.Config.Tenant != "" {
-			configMap["tenant"] = d.Config.Tenant
-		}
-	*/
 
 	return configMap
 }
@@ -106,6 +101,16 @@ func (d NdnfsDriver) PrepareConfigMap() map[string]string {
 func (d NdnfsDriver) Capabilities() *volume.CapabilitiesResponse {
 	log.Debug(DN, "Received Capabilities req")
 	return &volume.CapabilitiesResponse{Capabilities: volume.Capability{Scope: d.Scope}}
+}
+
+// Checks only service name missing in volume id
+func IsNoServiceValue(missedParts map[string]bool) bool {
+	if len(missedParts) == 1 {
+		if _, ok := missedParts["service"]; ok {
+			return true
+		}
+	}
+	return false
 }
 
 func (d NdnfsDriver) Create(r *volume.CreateRequest) (err error) {
@@ -118,16 +123,11 @@ func (d NdnfsDriver) Create(r *volume.CreateRequest) (err error) {
 	if err != nil {
 
 		// Only service missed in path notation, we should select appropriate service for new volume
-		if len(missedPathParts) == 1 {
-			if _, ok := missedPathParts["service"]; ok {
-				volID.Service = "nfs01"
-			} else {
-				return err
-			}
+		if IsNoServiceValue(missedPathParts) {
+			volID.Service = "nfs01"
 		} else {
 			return err
 		}
-
 	}
 
 	log.Infof("Parsed volume: %+v", volID)
@@ -201,8 +201,8 @@ func (d NdnfsDriver) Get(r *volume.GetRequest) (*volume.GetResponse, error) {
 		return &volume.GetResponse{}, err
 	}
 
-	log.Debugf("Device %s nfs endpoint is %s\n", nfsVolume.VolumeID, nfsEndpoint)
-	return &volume.GetResponse{Volume: &volume.Volume{Name: nfsVolume.VolumeID, Mountpoint: nfsEndpoint}}, err
+	log.Debugf("Device %s nfs endpoint is %s\n", nfsVolume.VolumeID.FullObjectPath(), nfsEndpoint)
+	return &volume.GetResponse{Volume: &volume.Volume{Name: nfsVolume.VolumeID.FullObjectPath(), Mountpoint: nfsEndpoint}}, err
 }
 
 func (d NdnfsDriver) List() (*volume.ListResponse, error) {
