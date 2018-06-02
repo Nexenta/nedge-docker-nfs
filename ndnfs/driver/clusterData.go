@@ -61,9 +61,9 @@ func (clusterData ClusterData) FillNfsVolumes(vmap map[string]string, defaultClu
 			//volIDObj, _, _ := nedgeprovider.ParseVolumeID(nfsVolume.VolumeID.String(), nil)
 			var volumePath string
 			if defaultCluster != "" && nfsVolume.VolumeID.Cluster == defaultCluster {
-				volumePath = nfsVolume.VolumeID.FullObjectPath()
-			} else {
 				volumePath = nfsVolume.VolumeID.MinimalObjectPath()
+			} else {
+				volumePath = nfsVolume.VolumeID.FullObjectPath()
 			}
 			vname := volumePath
 			vmap[vname] = fmt.Sprintf("%s:%s", data.Service.Network[0], nfsVolume.Share)
