@@ -104,7 +104,7 @@ func (d NdnfsDriver) Capabilities() *volume.CapabilitiesResponse {
 }
 
 // Checks only service name missing in volume id
-func IsNoServiceValue(missedParts map[string]bool) bool {
+func IsNoServiceSpecified(missedParts map[string]bool) bool {
 	if len(missedParts) == 1 {
 		if _, ok := missedParts["service"]; ok {
 			return true
@@ -123,14 +123,29 @@ func (d NdnfsDriver) Create(r *volume.CreateRequest) (err error) {
 	if err != nil {
 
 		// Only service missed in path notation, we should select appropriate service for new volume
-		if IsNoServiceValue(missedPathParts) {
+		if IsNoServiceSpecified(missedPathParts) {
 			volID.Service = "nfs01"
+			// get all services information to find service by path
+			clusterData, err := d.GetClusterData()
+			if err != nil {
+				return err
+			}
+
+			// find service to serve
+			appropriateServiceData, err := clusterData.FindApropriateServiceData()
+			if err != nil {
+				return err
+			}
+
+			// assign aprppriate service name to VolumeID
+			volID.Service = appropriateServiceData.Service.Name
+
 		} else {
 			return err
 		}
 	}
 
-	log.Infof("Parsed volume: %+v", volID)
+	log.Infof("VolumeID : %+v", volID)
 
 	log.Info("Creating bucket")
 	if !d.Nedge.IsBucketExist(volID.Cluster, volID.Tenant, volID.Bucket) {
