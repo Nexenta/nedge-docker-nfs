@@ -124,7 +124,7 @@ func (d NdnfsDriver) Create(r *volume.CreateRequest) (err error) {
 
 		// Only service missed in path notation, we should select appropriate service for new volume
 		if IsNoServiceSpecified(missedPathParts) {
-			volID.Service = "nfs01"
+			log.Infof("No service cpecified!")
 			// get all services information to find service by path
 			clusterData, err := d.GetClusterData()
 			if err != nil {
@@ -133,6 +133,7 @@ func (d NdnfsDriver) Create(r *volume.CreateRequest) (err error) {
 
 			// find service to serve
 			appropriateServiceData, err := clusterData.FindApropriateServiceData()
+			log.Infof("Appropriate service is : %s\n", appropriateServiceData.Service.Name)
 			if err != nil {
 				return err
 			}
