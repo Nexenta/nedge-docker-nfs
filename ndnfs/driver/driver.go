@@ -102,7 +102,7 @@ func (d NdnfsDriver) Capabilities() *volume.CapabilitiesResponse {
 	return &volume.CapabilitiesResponse{Capabilities: volume.Capability{Scope: d.Scope}}
 }
 
-// Checks only service name missing in volume id
+// Checks only service name is missing in volume id
 func IsNoServiceSpecified(missedParts map[string]bool) bool {
 	if len(missedParts) == 1 {
 		if _, ok := missedParts["service"]; ok {
@@ -110,6 +110,27 @@ func IsNoServiceSpecified(missedParts map[string]bool) bool {
 		}
 	}
 	return false
+}
+
+func (d NdnfsDriver) CheckNfsServiceExists(serviceName string) error {
+	nedgeService, err := d.Nedge.GetService(serviceName)
+	if err != nil {
+		return fmt.Errorf("No NexentaEdge service %s has been found", serviceName)
+	}
+
+	if nedgeService.ServiceType != "nfs" {
+		return fmt.Errorf("Service %s is not nfs type service", nedgeService.Name)
+	}
+
+	if len(nedgeService.Network) < 1 {
+		return fmt.Errorf("Service %s isn't configured, no client network assigned", nedgeService.Name)
+	}
+
+	if len(nedgeService.Network) < 1 {
+		return fmt.Errorf("Service %s isn't configured, no client network assigned", nedgeService.Name)
+	}
+
+	return nil
 }
 
 func (d NdnfsDriver) Create(r *volume.CreateRequest) (err error) {
@@ -146,6 +167,11 @@ func (d NdnfsDriver) Create(r *volume.CreateRequest) (err error) {
 	}
 
 	log.Infof("VolumeID : %+v", volID)
+	err = d.CheckNfsServiceExists(volID.Service)
+	if err != nil {
+		log.Error(err)
+		return err
+	}
 
 	log.Info("Creating bucket")
 	if !d.Nedge.IsBucketExist(volID.Cluster, volID.Tenant, volID.Bucket) {
