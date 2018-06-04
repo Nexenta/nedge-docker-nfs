@@ -16,6 +16,25 @@ type ClusterData struct {
 	nfsServicesData []NfsServiceData
 }
 
+func (nfsServiceData *NfsServiceData) FindNFSVolumeByVolumeID(volumeID nedgeprovider.VolumeID) (resultNfsVolume nedgeprovider.NedgeNFSVolume, err error) {
+
+	for _, nfsVolume := range nfsServiceData.NfsVolumes {
+		if nfsVolume.VolumeID.FullObjectPath() == volumeID.FullObjectPath() {
+			return nfsVolume, nil
+		}
+	}
+	return resultNfsVolume, fmt.Errorf("Can't find NFS volume by VolumeID : %+v\n", volumeID)
+}
+
+func (nfsServiceData *NfsServiceData) GetNFSVolumeAndEndpoint(volumeID nedgeprovider.VolumeID) (nfsVolume nedgeprovider.NedgeNFSVolume, endpoint string, err error) {
+	nfsVolume, err = nfsServiceData.FindNFSVolumeByVolumeID(volumeID)
+	if err != nil {
+		return nfsVolume, "", err
+	}
+
+	return nfsVolume, fmt.Sprintf("%s:%s", nfsServiceData.Service.Network[0], nfsVolume.Share), err
+}
+
 /*FindApropriateService find service with minimal export count*/
 func (clusterData ClusterData) FindApropriateServiceData() (*NfsServiceData, error) {
 
@@ -37,19 +56,18 @@ func (clusterData ClusterData) FindApropriateServiceData() (*NfsServiceData, err
 	return minService, nil
 }
 
-func (clusterData ClusterData) FindServiceDataByPath(cluster string, tenant string, bucket string) (result *NfsServiceData, err error) {
-	log.Debug(DN, "FindServiceByPath ")
-	searchedPath := fmt.Sprintf("%s/%s/%s", cluster, tenant, bucket)
+func (clusterData ClusterData) FindServiceDataByVolumeID(volumeID nedgeprovider.VolumeID) (result *NfsServiceData, err error) {
+	log.Debug(DN, "FindServiceDataByVolumeID ")
 
 	for _, data := range clusterData.nfsServicesData {
 		for _, nfsVolume := range data.NfsVolumes {
-			if nfsVolume.Path == searchedPath {
+			if nfsVolume.Path == volumeID.FullObjectPath() {
 				return &data, nil
 			}
 		}
 	}
 
-	return nil, fmt.Errorf("Can't find NFS service by path %s", searchedPath)
+	return nil, fmt.Errorf("Can't find NFS service data by VolumeID %s", volumeID)
 }
 
 /*FillNfsVolumes Fills outer volumes hashmap, format {VolumeID: volume nfs endpoint} */
@@ -58,7 +76,6 @@ func (clusterData ClusterData) FillNfsVolumes(vmap map[string]string, defaultClu
 	for _, data := range clusterData.nfsServicesData {
 		for _, nfsVolume := range data.NfsVolumes {
 
-			//volIDObj, _, _ := nedgeprovider.ParseVolumeID(nfsVolume.VolumeID.String(), nil)
 			var volumePath string
 			if defaultCluster != "" && nfsVolume.VolumeID.Cluster == defaultCluster {
 				volumePath = nfsVolume.VolumeID.MinimalObjectPath()

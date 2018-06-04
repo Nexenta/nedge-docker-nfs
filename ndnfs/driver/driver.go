@@ -31,11 +31,10 @@ type NdnfsDriver struct {
 }
 
 type Config struct {
-	Name      string
-	Nedgerest string
-	Nedgeport int16
-	Cluster   string
-	//Tenant         string
+	Name           string
+	Nedgerest      string
+	Nedgeport      int16
+	Cluster        string
 	Chunksize      int
 	Username       string
 	Password       string
@@ -186,38 +185,42 @@ func (d NdnfsDriver) Create(r *volume.CreateRequest) (err error) {
 func (d NdnfsDriver) Get(r *volume.GetRequest) (*volume.GetResponse, error) {
 	log.Debug(DN, "Get volume: ", r.Name)
 
+	var clusterData ClusterData
 	configMap := d.PrepareConfigMap()
 	volID, missedPathParts, err := nedgeprovider.ParseVolumeID(r.Name, configMap)
 	if err != nil {
 		// Only service missed in path notation, we should select appropriate service for new volume
-		if len(missedPathParts) == 1 {
-			if _, ok := missedPathParts["service"]; ok {
-				volID.Service = "nfs01"
-			} else {
+		if IsNoServiceSpecified(missedPathParts) {
+			log.Infof("No service cpecified!")
+			// get all services information to find service by path
+			clusterData, err = d.GetClusterData()
+			if err != nil {
 				return &volume.GetResponse{}, err
 			}
-		} else {
+		}
+	} else {
+		clusterData, err = d.GetClusterData(volID.Service)
+		if err != nil {
 			return &volume.GetResponse{}, err
 		}
-
 	}
 
-	service, err := d.Nedge.GetService(volID.Service)
+	// find service to serve
+	serviceData, err := clusterData.FindServiceDataByVolumeID(volID)
+	log.Infof("Service is : %+v\n", serviceData)
 	if err != nil {
 		return &volume.GetResponse{}, err
 	}
 
-	nfsVolumes, err := d.Nedge.ListNFSVolumes(volID.Service)
+	// assign service name to VolumeID
+	volID.Service = serviceData.Service.Name
+
+	nfsVolume, nfsEndpoint, err := serviceData.GetNFSVolumeAndEndpoint(volID)
 	if err != nil {
 		return &volume.GetResponse{}, err
 	}
 
-	nfsVolume, nfsEndpoint, err := service.GetNFSVolumeAndEndpoint(volID.String(), service, nfsVolumes)
-	if err != nil {
-		return &volume.GetResponse{}, err
-	}
-
-	log.Debugf("Device %s nfs endpoint is %s\n", nfsVolume.VolumeID.FullObjectPath(), nfsEndpoint)
+	log.Debugf("Device %s nfs endpoint is %s\n", r.Name, nfsEndpoint)
 	return &volume.GetResponse{Volume: &volume.Volume{Name: nfsVolume.VolumeID.FullObjectPath(), Mountpoint: nfsEndpoint}}, err
 }
 
@@ -304,44 +307,49 @@ func (d NdnfsDriver) Mount(r *volume.MountRequest) (*volume.MountResponse, error
 	d.Mutex.Lock()
 	defer d.Mutex.Unlock()
 
-	var mnt string
+	var clusterData ClusterData
 	var err error
 
 	configMap := d.PrepareConfigMap()
 	volID, missedPathParts, err := nedgeprovider.ParseVolumeID(r.Name, configMap)
 	if err != nil {
-		if len(missedPathParts) == 1 {
-			if _, ok := missedPathParts["service"]; ok {
-				volID.Service = "nfs01"
-			} else {
+		// Only service missed in path notation, we should select appropriate service for new volume
+		if IsNoServiceSpecified(missedPathParts) {
+			log.Infof("No service cpecified!")
+			// get all services information to find service by path
+			clusterData, err = d.GetClusterData()
+			if err != nil {
 				return &volume.MountResponse{}, err
 			}
-		} else {
+		}
+	} else {
+		clusterData, err = d.GetClusterData(volID.Service)
+		if err != nil {
 			return &volume.MountResponse{}, err
 		}
 	}
 
-	service, err := d.Nedge.GetService(volID.Service)
+	// find service to serve
+	serviceData, err := clusterData.FindServiceDataByVolumeID(volID)
+	log.Infof("Service is : %+v\n", serviceData)
 	if err != nil {
 		return &volume.MountResponse{}, err
 	}
 
-	nfsVolumes, err := d.Nedge.ListNFSVolumes(volID.Service)
+	// assign service name to VolumeID
+	//volID.Service = serviceData.Service.Name
+
+	nfsVolume, nfsEndpoint, err := serviceData.GetNFSVolumeAndEndpoint(volID)
 	if err != nil {
 		return &volume.MountResponse{}, err
 	}
 
-	_, nfsEndpoint, err := service.GetNFSVolumeAndEndpoint(volID.String(), service, nfsVolumes)
-	if err != nil {
-		return &volume.MountResponse{}, err
-	}
-
-	mnt = filepath.Join(d.Config.Mountpoint, volID.FullObjectPath())
+	mnt := filepath.Join(d.Config.Mountpoint, nfsVolume.VolumeID.FullObjectPath())
 	log.Infof(DN, "Creating mountpoint folder:%s to remote share %s ", mnt, nfsEndpoint)
 	if out, err := exec.Command("mkdir", "-p", mnt).CombinedOutput(); err != nil {
 		log.Info("Error running mkdir command: ", err, "{", string(out), "}")
 	}
-	log.Debug(DN, "Checking if volume is mounted ", volID.FullObjectPath())
+	log.Debug(DN, "Checking if volume is mounted ", nfsVolume.VolumeID.FullObjectPath())
 	out, err := exec.Command("mount").CombinedOutput()
 	if !strings.Contains(string(out), mnt) {
 		log.Debug(DN, "Mounting Volume ", volID.FullObjectPath())
@@ -356,23 +364,42 @@ func (d NdnfsDriver) Mount(r *volume.MountRequest) (*volume.MountResponse, error
 
 func (d NdnfsDriver) Path(r *volume.PathRequest) (*volume.PathResponse, error) {
 	log.Infof(DN, "Path volume: %s\n", r.Name)
+	var clusterData ClusterData
 	var err error
 
 	configMap := d.PrepareConfigMap()
 	volID, missedPathParts, err := nedgeprovider.ParseVolumeID(r.Name, configMap)
 	if err != nil {
-		if len(missedPathParts) == 1 {
-			if _, ok := missedPathParts["service"]; ok {
-				volID.Service = "nfs01"
-			} else {
+		// Only service missed in path notation, we should select appropriate service for new volume
+		if IsNoServiceSpecified(missedPathParts) {
+			log.Infof("No service cpecified!")
+			// get all services information to find service by path
+			clusterData, err = d.GetClusterData()
+			if err != nil {
 				return &volume.PathResponse{}, err
 			}
-		} else {
+		}
+	} else {
+		clusterData, err = d.GetClusterData(volID.Service)
+		if err != nil {
 			return &volume.PathResponse{}, err
 		}
 	}
 
-	mnt := fmt.Sprintf("%s/%s", d.Config.Mountpoint, volID.FullObjectPath())
+	// find service to serve
+	serviceData, err := clusterData.FindServiceDataByVolumeID(volID)
+	log.Infof("Service is : %+v\n", serviceData)
+	if err != nil {
+		return &volume.PathResponse{}, err
+	}
+
+	// find nfs volume in service information
+	nfsVolume, err := serviceData.FindNFSVolumeByVolumeID(volID)
+	if err != nil {
+		return &volume.PathResponse{}, err
+	}
+
+	mnt := fmt.Sprintf("%s/%s", d.Config.Mountpoint, nfsVolume.VolumeID.FullObjectPath())
 	return &volume.PathResponse{Mountpoint: mnt}, err
 }
 
@@ -381,32 +408,48 @@ func (d NdnfsDriver) Remove(r *volume.RemoveRequest) error {
 	d.Mutex.Lock()
 	defer d.Mutex.Unlock()
 
+	var clusterData ClusterData
+	var err error
+
 	configMap := d.PrepareConfigMap()
 	volID, missedPathParts, err := nedgeprovider.ParseVolumeID(r.Name, configMap)
 	if err != nil {
-		if len(missedPathParts) == 1 {
-			if _, ok := missedPathParts["service"]; ok {
-				volID.Service = "nfs01"
-			} else {
+		// Only service missed in path notation, we should select appropriate service for new volume
+		if IsNoServiceSpecified(missedPathParts) {
+			log.Infof("No service cpecified!")
+			// get all services information to find service by path
+			clusterData, err = d.GetClusterData()
+			if err != nil {
 				return err
 			}
-		} else {
+		}
+	} else {
+		clusterData, err = d.GetClusterData(volID.Service)
+		if err != nil {
 			return err
 		}
 	}
 
-	_, err = d.Nedge.GetService(volID.Service)
+	// find service to serve
+	serviceData, err := clusterData.FindServiceDataByVolumeID(volID)
+	log.Infof("Service is : %+v\n", serviceData)
+	if err != nil {
+		return err
+	}
+
+	// find nfs volume in service information
+	nfsVolume, err := serviceData.FindNFSVolumeByVolumeID(volID)
 	if err != nil {
 		return err
 	}
 
 	// before unserve bucket we need to unset ACL property
-	d.Nedge.SetServiceAclConfiguration(volID.Service, volID.Tenant, volID.Bucket, "")
+	d.Nedge.SetServiceAclConfiguration(nfsVolume.VolumeID.Service, nfsVolume.VolumeID.Tenant, nfsVolume.VolumeID.Bucket, "")
 
-	d.Nedge.UnserveBucket(volID.Service, volID.Cluster, volID.Tenant, volID.Bucket)
+	d.Nedge.UnserveBucket(nfsVolume.VolumeID.Service, nfsVolume.VolumeID.Cluster, nfsVolume.VolumeID.Tenant, nfsVolume.VolumeID.Bucket)
 
-	if d.Nedge.IsBucketExist(volID.Cluster, volID.Tenant, volID.Bucket) {
-		d.Nedge.DeleteBucket(volID.Cluster, volID.Tenant, volID.Bucket)
+	if d.Nedge.IsBucketExist(nfsVolume.VolumeID.Cluster, nfsVolume.VolumeID.Tenant, nfsVolume.VolumeID.Bucket) {
+		d.Nedge.DeleteBucket(nfsVolume.VolumeID.Cluster, nfsVolume.VolumeID.Tenant, nfsVolume.VolumeID.Bucket)
 	}
 
 	return err
@@ -434,21 +477,41 @@ func (d NdnfsDriver) Unmount(r *volume.UnmountRequest) (err error) {
 	d.Mutex.Lock()
 	defer d.Mutex.Unlock()
 
+	var clusterData ClusterData
+
 	configMap := d.PrepareConfigMap()
 	volID, missedPathParts, err := nedgeprovider.ParseVolumeID(r.Name, configMap)
 	if err != nil {
-		if len(missedPathParts) == 1 {
-			if _, ok := missedPathParts["service"]; ok {
-				volID.Service = "nfs01"
-			} else {
+		// Only service missed in path notation, we should select appropriate service for new volume
+		if IsNoServiceSpecified(missedPathParts) {
+			log.Infof("No service cpecified!")
+			// get all services information to find service by path
+			clusterData, err = d.GetClusterData()
+			if err != nil {
 				return err
 			}
-		} else {
+		}
+	} else {
+		clusterData, err = d.GetClusterData(volID.Service)
+		if err != nil {
 			return err
 		}
 	}
 
-	mnt := filepath.Join(d.Config.Mountpoint, volID.FullObjectPath())
+	// find service to serve
+	serviceData, err := clusterData.FindServiceDataByVolumeID(volID)
+	log.Infof("Service is : %+v\n", serviceData)
+	if err != nil {
+		return err
+	}
+
+	// find nfs volume in service information
+	nfsVolume, err := serviceData.FindNFSVolumeByVolumeID(volID)
+	if err != nil {
+		return err
+	}
+
+	mnt := filepath.Join(d.Config.Mountpoint, nfsVolume.VolumeID.FullObjectPath())
 	if IsNfsMountExist(mnt) {
 		if out, err := exec.Command("umount", mnt).CombinedOutput(); err != nil {
 			log.Error("Error running umount command: ", err, "{", string(out), "}")
