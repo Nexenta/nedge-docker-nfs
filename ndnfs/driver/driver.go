@@ -217,7 +217,7 @@ func (d NdnfsDriver) Get(r *volume.GetRequest) (*volume.GetResponse, error) {
 	if err != nil {
 		// Only service missed in path notation, we should select appropriate service for new volume
 		if IsNoServiceSpecified(missedPathParts) {
-			log.Infof("No service cpecified!")
+			log.Infof("No service specified!")
 			// get all services information to find service by path
 			clusterData, err = d.GetClusterData()
 			if err != nil {
@@ -274,8 +274,11 @@ func (d NdnfsDriver) GetClusterData(serviceName ...string) (ClusterData, error) 
 	services := []nedgeprovider.NedgeService{}
 	if len(serviceName) > 0 {
 		service, retError := d.Nedge.GetService(serviceName[0])
-		err = retError
-		services[0] = service
+		if retError != nil {
+			log.Error("Failed to retrieve service by name ", serviceName[0])
+			return clusterData, err
+		}
+		services = append(services, service)
 	} else {
 		services, err = d.Nedge.ListServices()
 	}
