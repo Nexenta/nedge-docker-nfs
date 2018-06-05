@@ -173,6 +173,16 @@ func (d NdnfsDriver) Create(r *volume.CreateRequest) (err error) {
 		return err
 	}
 
+	// check for cluster name existance
+	if !d.IsClusterExists(volID.Cluster) {
+		return fmt.Errorf("No cluster name %s found", volID.Cluster)
+	}
+
+	// check for tenant name existance
+	if !d.IsTenantExists(volID.Cluster, volID.Tenant) {
+		return fmt.Errorf("No cluster/tenant name %s/%s found", volID.Cluster, volID.Tenant)
+	}
+
 	log.Info("Creating bucket")
 	if !d.Nedge.IsBucketExist(volID.Cluster, volID.Tenant, volID.Bucket) {
 		log.Info("Bucket doesnt exist")
@@ -344,7 +354,7 @@ func (d NdnfsDriver) Mount(r *volume.MountRequest) (*volume.MountResponse, error
 	if err != nil {
 		// Only service missed in path notation, we should select appropriate service for new volume
 		if IsNoServiceSpecified(missedPathParts) {
-			log.Infof("No service cpecified!")
+			log.Infof("No service specified!")
 			// get all services information to find service by path
 			clusterData, err = d.GetClusterData()
 			if err != nil {
@@ -401,7 +411,7 @@ func (d NdnfsDriver) Path(r *volume.PathRequest) (*volume.PathResponse, error) {
 	if err != nil {
 		// Only service missed in path notation, we should select appropriate service for new volume
 		if IsNoServiceSpecified(missedPathParts) {
-			log.Infof("No service cpecified!")
+			log.Infof("No service specified!")
 			// get all services information to find service by path
 			clusterData, err = d.GetClusterData()
 			if err != nil {
@@ -551,4 +561,32 @@ func (d NdnfsDriver) Unmount(r *volume.UnmountRequest) (err error) {
 		}
 	}
 	return err
+}
+
+func (d NdnfsDriver) IsClusterExists(clusterName string) bool {
+	clusters, err := d.Nedge.ListClusters()
+	if err != nil {
+		return false
+	}
+
+	for _, cluster := range clusters {
+		if cluster == clusterName {
+			return true
+		}
+	}
+	return false
+}
+
+func (d NdnfsDriver) IsTenantExists(clusterName string, tenantName string) bool {
+	tenants, err := d.Nedge.ListTenants(clusterName)
+	if err != nil {
+		return false
+	}
+
+	for _, tenant := range tenants {
+		if tenant == tenantName {
+			return true
+		}
+	}
+	return false
 }
