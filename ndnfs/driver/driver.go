@@ -31,16 +31,17 @@ type NdnfsDriver struct {
 }
 
 type Config struct {
-	Name           string
-	Nedgerest      string
-	Nedgeport      int16
-	Cluster        string
-	Chunksize      int
-	Username       string
-	Password       string
-	Mountpoint     string
-	Service_Filter string
-	ServiceFilter  map[string]bool `json:"-"`
+	Name                string
+	Nedgerest           string
+	Nedgeport           int16
+	Cluster             string
+	Chunksize           int
+	Username            string
+	Password            string
+	Mountpoint          string
+	ForceBucketDeletion bool `json:"forceBucketDeletion"`
+	Service_Filter      string
+	ServiceFilter       map[string]bool `json:"-"`
 }
 
 func ReadParseConfig(fname string) (config Config) {
@@ -65,6 +66,7 @@ func DriverAlloc(cfgFile string) (driver NdnfsDriver) {
 	if conf.Chunksize == 0 {
 		conf.Chunksize = defaultChunkSize
 	}
+
 	if conf.Mountpoint == "" {
 		conf.Mountpoint = defaultMountPoint
 	}
@@ -488,7 +490,7 @@ func (d NdnfsDriver) Remove(r *volume.RemoveRequest) error {
 	d.Nedge.UnserveBucket(nfsVolume.VolumeID.Service, nfsVolume.VolumeID.Cluster, nfsVolume.VolumeID.Tenant, nfsVolume.VolumeID.Bucket)
 
 	if d.Nedge.IsBucketExist(nfsVolume.VolumeID.Cluster, nfsVolume.VolumeID.Tenant, nfsVolume.VolumeID.Bucket) {
-		d.Nedge.DeleteBucket(nfsVolume.VolumeID.Cluster, nfsVolume.VolumeID.Tenant, nfsVolume.VolumeID.Bucket)
+		d.Nedge.DeleteBucket(nfsVolume.VolumeID.Cluster, nfsVolume.VolumeID.Tenant, nfsVolume.VolumeID.Bucket, d.Config.ForceBucketDeletion)
 	}
 
 	return err

@@ -57,7 +57,7 @@ type INexentaEdgeProvider interface {
 	ListBuckets(cluster string, tenant string) (buckets []string, err error)
 	IsBucketExist(cluster string, tenant string, bucket string) bool
 	CreateBucket(cluster string, tenant string, bucket string, size int, options map[string]string) error
-	DeleteBucket(cluster string, tenant string, bucket string) error
+	DeleteBucket(cluster string, tenant string, bucket string, force bool) error
 	ServeBucket(service string, cluster string, tenant string, bucket string) (err error)
 	UnserveBucket(service string, cluster string, tenant string, bucket string) (err error)
 	SetBucketQuota(cluster string, tenant string, bucket string, quota string) (err error)
@@ -196,8 +196,12 @@ func (nedge *NexentaEdgeProvider) CreateBucket(clusterName string, tenantName st
 	return err
 }
 
-func (nedge *NexentaEdgeProvider) DeleteBucket(cluster string, tenant string, bucket string) (err error) {
+func (nedge *NexentaEdgeProvider) DeleteBucket(cluster string, tenant string, bucket string, force bool) (err error) {
 	path := fmt.Sprintf("clusters/%s/tenants/%s/buckets/%s", cluster, tenant, bucket)
+
+	if force == true {
+		path += "?expunge=1"
+	}
 
 	log.Infof("DeleteBucket: path: %s ", path)
 	_, err = nedge.doNedgeRequest("DELETE", path, nil)
