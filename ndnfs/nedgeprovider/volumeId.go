@@ -143,3 +143,7 @@ func (path *VolumeID) FullObjectPath() string {
 func (path *VolumeID) MinimalObjectPath() string {
 	return fmt.Sprintf("%s/%s", path.Tenant, path.Bucket)
 }
+
+func (path *VolumeID) MountPointObjectPath() string {
+	return fmt.Sprintf("%s-%s-%s", path.Cluster, path.Tenant, path.Bucket)
+}
