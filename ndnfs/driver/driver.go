@@ -385,6 +385,8 @@ func (d NdnfsDriver) Mount(r *volume.MountRequest) (*volume.MountResponse, error
 		return &volume.MountResponse{}, err
 	}
 
+	log.Infof("Nfs volume: %+v NfsEndpoint %+v\n", nfsVolume, nfsEndpoint)
+
 	mnt := filepath.Join(d.Config.Mountpoint, nfsVolume.VolumeID.MountPointObjectPath())
 	log.Infof(DN, "Creating mountpoint folder:%s to remote share %s ", mnt, nfsEndpoint)
 	if out, err := exec.Command("mkdir", "-p", mnt).CombinedOutput(); err != nil {
