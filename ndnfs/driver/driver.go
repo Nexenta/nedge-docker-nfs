@@ -259,7 +259,7 @@ func (d NdnfsDriver) Get(r *volume.GetRequest) (*volume.GetResponse, error) {
 	}
 
 	log.Debugf("Device %s nfs endpoint is %s\n", r.Name, nfsEndpoint)
-	return &volume.GetResponse{Volume: &volume.Volume{Name: nfsVolume.VolumeID.MountPointObjectPath(), Mountpoint: nfsEndpoint}}, err
+	return &volume.GetResponse{Volume: &volume.Volume{Name: nfsVolume.VolumeID.FullObjectPath(), Mountpoint: nfsEndpoint}}, err
 }
 
 func (d NdnfsDriver) List() (*volume.ListResponse, error) {
