@@ -385,17 +385,17 @@ func (d NdnfsDriver) Mount(r *volume.MountRequest) (*volume.MountResponse, error
 		return &volume.MountResponse{}, err
 	}
 
-	log.Infof("Nfs volume: %+v NfsEndpoint %+v\n", nfsVolume, nfsEndpoint)
+	log.Infof("Nfs volume: %+v NfsEndpoint %s\n", nfsVolume, nfsEndpoint)
 
 	mnt := filepath.Join(d.Config.Mountpoint, nfsVolume.VolumeID.MountPointObjectPath())
-	log.Infof(DN, "Creating mountpoint folder:%s to remote share %s ", mnt, nfsEndpoint)
+	log.Infof("Creating mountpoint folder: %s to remote share %s \n", mnt, nfsEndpoint)
 	if out, err := exec.Command("mkdir", "-p", mnt).CombinedOutput(); err != nil {
 		log.Info("Error running mkdir command: ", err, "{", string(out), "}")
 	}
-	log.Debug(DN, "Checking if volume is mounted ", nfsVolume.VolumeID.MountPointObjectPath())
+	log.Debug("Checking if volume is mounted ", nfsVolume.VolumeID.MountPointObjectPath())
 	out, err := exec.Command("mount").CombinedOutput()
 	if !strings.Contains(string(out), mnt) {
-		log.Debug(DN, "Mounting Volume ", volID.MountPointObjectPath())
+		log.Infof("Mounting Volume %s on %s\n", nfsEndpoint, volID.MountPointObjectPath())
 		args := []string{"-t", "nfs", nfsEndpoint, mnt}
 		if out, err := exec.Command("mount", args...).CombinedOutput(); err != nil {
 			err = fmt.Errorf("%s: %s", err, out)
