@@ -128,8 +128,8 @@ func (d NdnfsDriver) CheckNfsServiceExists(serviceName string) error {
 		return fmt.Errorf("Service %s isn't configured, no client network assigned", nedgeService.Name)
 	}
 
-	if len(nedgeService.Network) < 1 {
-		return fmt.Errorf("Service %s isn't configured, no client network assigned", nedgeService.Name)
+	if nedgeService.Status != "enabled" {
+		return fmt.Errorf("Service %s not enabled, enable service to make it available", nedgeService.Name)
 	}
 
 	return nil
@@ -155,8 +155,9 @@ func (d NdnfsDriver) Create(r *volume.CreateRequest) (err error) {
 
 			// find service to serve
 			appropriateServiceData, err := clusterData.FindApropriateServiceData()
-			log.Infof("Appropriate service is : %s\n", appropriateServiceData.Service.Name)
+			log.Infof("Appropriate service is : %+v\n", appropriateServiceData)
 			if err != nil {
+				log.Infof("Appropriate service selection failed : %s\n", err)
 				return err
 			}
 
@@ -164,6 +165,7 @@ func (d NdnfsDriver) Create(r *volume.CreateRequest) (err error) {
 			volID.Service = appropriateServiceData.Service.Name
 
 		} else {
+			log.Errorf("ParseVolumeID error : %s\n", err)
 			return err
 		}
 	}
@@ -395,7 +397,7 @@ func (d NdnfsDriver) Mount(r *volume.MountRequest) (*volume.MountResponse, error
 	log.Debug("Checking if volume is mounted ", nfsVolume.VolumeID.MountPointObjectPath())
 	out, err := exec.Command("mount").CombinedOutput()
 	if !strings.Contains(string(out), mnt) {
-		log.Infof("Mounting Volume %s on %s\n", nfsEndpoint, volID.MountPointObjectPath())
+		log.Infof("Mounting Volume %s on %s\n", nfsEndpoint, nfsVolume.VolumeID.MountPointObjectPath())
 		args := []string{"-t", "nfs", nfsEndpoint, mnt}
 		if out, err := exec.Command("mount", args...).CombinedOutput(); err != nil {
 			err = fmt.Errorf("%s: %s", err, out)
