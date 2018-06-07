@@ -168,15 +168,15 @@ func (nedge *NexentaEdgeProvider) CreateBucket(clusterName string, tenantName st
 	}
 
 	// enabled encryption tied with enc
-	if encryption, ok := options["enableEncryption"]; ok {
+	if encryption, ok := options["encryption"]; ok {
 		data["optionsObject"].(map[string]interface{})["ccow-encryption-enabled"] = parseBooleanOption(encryption)
 
 	}
 
 	// erasure coding block tied with erasure mode
-	if erasureCoding, ok := options["enableErasure"]; ok {
+	if erasureCoding, ok := options["ec"]; ok {
 		data["optionsObject"].(map[string]interface{})["ccow-ec-enabled"] = parseBooleanOption(erasureCoding)
-		if erasureMode, ok := options["erasureMode"]; ok {
+		if erasureMode, ok := options["ecmode"]; ok {
 			data["optionsObject"].(map[string]interface{})["ccow-ec-data-mode"] = erasureMode
 		} else {
 			return errors.New("Cannot enable Erasure Coding without additional option erasureMode. 'erasureMode' available values:[\"4:2:rs\", \"6:2:rs\", \"9:3:rs\"]")

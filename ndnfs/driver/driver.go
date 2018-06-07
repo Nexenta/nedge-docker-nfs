@@ -39,9 +39,9 @@ type Config struct {
 	Username            string
 	Password            string
 	Mountpoint          string
-	ForceBucketDeletion bool `json:"forceBucketDeletion"`
-	Service_Filter      string
-	ServiceFilter       map[string]bool `json:"-"`
+	ForceBucketDeletion bool            `json:"forceBucketDeletion"`
+	ServiceFilter       string          `json:"serviceFilter"`
+	ServiceFilterMap    map[string]bool `json:"-"`
 }
 
 func ReadParseConfig(fname string) (config Config) {
@@ -57,7 +57,7 @@ func ReadParseConfig(fname string) (config Config) {
 		log.Fatal(DN, msg)
 	}
 
-	conf.ServiceFilter = make(map[string]bool)
+	conf.ServiceFilterMap = make(map[string]bool)
 	return conf
 }
 
@@ -71,10 +71,10 @@ func DriverAlloc(cfgFile string) (driver NdnfsDriver) {
 		conf.Mountpoint = defaultMountPoint
 	}
 
-	if conf.Service_Filter != "" {
-		services := strings.Split(conf.Service_Filter, ",")
+	if conf.ServiceFilter != "" {
+		services := strings.Split(conf.ServiceFilter, ",")
 		for _, srvName := range services {
-			conf.ServiceFilter[strings.TrimSpace(srvName)] = true
+			conf.ServiceFilterMap[strings.TrimSpace(srvName)] = true
 		}
 	}
 
@@ -306,7 +306,7 @@ func (d NdnfsDriver) GetClusterData(serviceName ...string) (ClusterData, error) 
 
 		//if ServiceFilter not empty, skip every service not presented in list(map)
 		if len(d.Config.ServiceFilter) > 0 {
-			if _, ok := d.Config.ServiceFilter[service.Name]; !ok {
+			if _, ok := d.Config.ServiceFilterMap[service.Name]; !ok {
 				continue
 			}
 		}
