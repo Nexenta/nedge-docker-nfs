@@ -18,15 +18,8 @@ const (
 	defaultSize      int = 1024
 )
 
-type VolumeID struct {
-	Cluster string
-	Tenant  string
-	Bucket  string
-	Service string
-}
-
 type NedgeNFSVolume struct {
-	VolumeID string
+	VolumeID VolumeID
 	Path     string
 	Share    string
 }
@@ -41,7 +34,7 @@ type NedgeService struct {
 func (nedgeService *NedgeService) FindNFSVolumeByVolumeID(volumeID string, nfsVolumes []NedgeNFSVolume) (resultNfsVolume NedgeNFSVolume, err error) {
 
 	for _, nfsVolume := range nfsVolumes {
-		if nfsVolume.VolumeID == volumeID {
+		if nfsVolume.VolumeID.String() == volumeID {
 			return nfsVolume, nil
 		}
 	}
@@ -64,7 +57,7 @@ type INexentaEdgeProvider interface {
 	ListBuckets(cluster string, tenant string) (buckets []string, err error)
 	IsBucketExist(cluster string, tenant string, bucket string) bool
 	CreateBucket(cluster string, tenant string, bucket string, size int, options map[string]string) error
-	DeleteBucket(cluster string, tenant string, bucket string) error
+	DeleteBucket(cluster string, tenant string, bucket string, force bool) error
 	ServeBucket(service string, cluster string, tenant string, bucket string) (err error)
 	UnserveBucket(service string, cluster string, tenant string, bucket string) (err error)
 	SetBucketQuota(cluster string, tenant string, bucket string, quota string) (err error)
@@ -90,7 +83,7 @@ func InitNexentaEdgeProvider(restip string, port int16, username string, passwor
 	log.Infof("LOGGER LEVEL IS: %s\n", loggerLevel.String())
 
 	if nexentaEdgeProviderInstance == nil {
-		log.Info("InitNexentaEdgeProvider initialization")
+		//log.Info("InitNexentaEdgeProvider initialization")
 
 		nexentaEdgeProviderInstance = &NexentaEdgeProvider{
 			endpoint: fmt.Sprintf("http://%s:%d/", restip, port),
@@ -99,31 +92,6 @@ func InitNexentaEdgeProvider(restip string, port int16, username string, passwor
 	}
 
 	return nexentaEdgeProviderInstance
-}
-
-func ParseVolumeID(volumeID string) (resultObject VolumeID, err error) {
-	parts := strings.Split(volumeID, "@")
-	if len(parts) != 2 {
-		err := errors.New("Wrong format of object path. Path must be in format service@cluster/tenant/bucket")
-		return resultObject, err
-	}
-
-	pathObjects := strings.Split(parts[1], "/")
-	if len(pathObjects) != 3 {
-		err := errors.New("Wrong format of object path. Path must be in format service@cluster/tenant/bucket")
-		return resultObject, err
-	}
-
-	resultObject.Service = parts[0]
-	resultObject.Cluster = pathObjects[0]
-	resultObject.Tenant = pathObjects[1]
-	resultObject.Bucket = pathObjects[2]
-
-	return resultObject, err
-}
-
-func (path *VolumeID) GetObjectPath() string {
-	return fmt.Sprintf("%s@%s/%s/%s", path.Service, path.Cluster, path.Tenant, path.Bucket)
 }
 
 /*CheckHealth check connection to the nexentaedge cluster */
@@ -200,15 +168,15 @@ func (nedge *NexentaEdgeProvider) CreateBucket(clusterName string, tenantName st
 	}
 
 	// enabled encryption tied with enc
-	if encryption, ok := options["enableEncryption"]; ok {
+	if encryption, ok := options["encryption"]; ok {
 		data["optionsObject"].(map[string]interface{})["ccow-encryption-enabled"] = parseBooleanOption(encryption)
 
 	}
 
 	// erasure coding block tied with erasure mode
-	if erasureCoding, ok := options["enableErasure"]; ok {
+	if erasureCoding, ok := options["ec"]; ok {
 		data["optionsObject"].(map[string]interface{})["ccow-ec-enabled"] = parseBooleanOption(erasureCoding)
-		if erasureMode, ok := options["erasureMode"]; ok {
+		if erasureMode, ok := options["ecmode"]; ok {
 			data["optionsObject"].(map[string]interface{})["ccow-ec-data-mode"] = erasureMode
 		} else {
 			return errors.New("Cannot enable Erasure Coding without additional option erasureMode. 'erasureMode' available values:[\"4:2:rs\", \"6:2:rs\", \"9:3:rs\"]")
@@ -228,8 +196,12 @@ func (nedge *NexentaEdgeProvider) CreateBucket(clusterName string, tenantName st
 	return err
 }
 
-func (nedge *NexentaEdgeProvider) DeleteBucket(cluster string, tenant string, bucket string) (err error) {
+func (nedge *NexentaEdgeProvider) DeleteBucket(cluster string, tenant string, bucket string, force bool) (err error) {
 	path := fmt.Sprintf("clusters/%s/tenants/%s/buckets/%s", cluster, tenant, bucket)
+
+	if force == true {
+		path += "?expunge=1"
+	}
 
 	log.Infof("DeleteBucket: path: %s ", path)
 	_, err = nedge.doNedgeRequest("DELETE", path, nil)
@@ -238,15 +210,15 @@ func (nedge *NexentaEdgeProvider) DeleteBucket(cluster string, tenant string, bu
 
 func (nedge *NexentaEdgeProvider) SetServiceAclConfiguration(service string, tenant string, bucket string, value string) error {
 	aclName := fmt.Sprintf("X-NFS-ACL-%s/%s", tenant, bucket)
-	log.Infof("SetServiceAclConfiguration: serviceName:%s, path: %s/%s ", service, tenant, bucket)
-	log.Infof("SetServiceAclConfiguration: %s:%s ", aclName, value)
+	//.Infof("SetServiceAclConfiguration: serviceName:%s, path: %s/%s ", service, tenant, bucket)
+	//log.Infof("SetServiceAclConfiguration: %s:%s ", aclName, value)
 	return nedge.setServiceConfigParam(service, aclName, value)
 }
 
 func (nedge *NexentaEdgeProvider) UnsetServiceAclConfiguration(service string, tenant string, bucket string) error {
 	aclName := fmt.Sprintf("X-NFS-ACL-%s/%s", tenant, bucket)
-	log.Infof("UnsetServiceAclConfiguration: serviceName:%s, path: %s/%s ", service, tenant, bucket)
-	log.Infof("UnsetServiceAclConfiguration: %s ", aclName)
+	//log.Infof("UnsetServiceAclConfiguration: serviceName:%s, path: %s/%s ", service, tenant, bucket)
+	//log.Infof("UnsetServiceAclConfiguration: %s ", aclName)
 	return nedge.setServiceConfigParam(service, aclName, "")
 }
 
@@ -256,13 +228,13 @@ func (nedge *NexentaEdgeProvider) SetBucketQuota(cluster string, tenant string, 
 	data := make(map[string]interface{})
 	data["quota"] = quota
 
-	log.Infof("SetBucketQuota: path: %s ", path)
+	//log.Infof("SetBucketQuota: path: %s ", path)
 	_, err = nedge.doNedgeRequest("PUT", path, data)
 	return err
 }
 
 func (nedge *NexentaEdgeProvider) setServiceConfigParam(service string, parameter string, value string) (err error) {
-	log.Infof("ConfigureService: serviceName:%s, %s:%s", service, parameter, value)
+	//log.Infof("ConfigureService: serviceName:%s, %s:%s", service, parameter, value)
 	path := fmt.Sprintf("/service/%s/config", service)
 
 	//request data
@@ -270,7 +242,7 @@ func (nedge *NexentaEdgeProvider) setServiceConfigParam(service string, paramete
 	data["param"] = parameter
 	data["value"] = value
 
-	log.Infof("setServiceConfigParam: path:%s values:%+v", path, data)
+	//log.Infof("setServiceConfigParam: path:%s values:%+v", path, data)
 	_, err = nedge.doNedgeRequest("PUT", path, data)
 	return err
 }
@@ -320,7 +292,7 @@ func GetServiceNetwork(serviceVal map[string]interface{}) (networks []string) {
 			subnetIndex := strings.Index(VIP, "/")
 			if subnetIndex > 0 {
 				VIP := VIP[:subnetIndex]
-				log.Infof("X-VIP is: %s\n", VIP)
+				//log.Infof("X-VIP is: %s\n", VIP)
 				networks = append(networks, VIP)
 			}
 		}
@@ -357,7 +329,7 @@ func GetServiceData(serviceVal map[string]interface{}) (service NedgeService, er
 
 	service.Network = make([]string, 0)
 
-	log.Debugf("Service : %+v\n", service)
+	//log.Debugf("Service : %+v\n", service)
 	return service, err
 }
 
@@ -460,7 +432,7 @@ func (nedge *NexentaEdgeProvider) ServeBucket(service string, cluster string, te
 	data := make(map[string]interface{})
 	data["serve"] = serve
 
-	log.Infof("ServeService: service: %s data: %+v", path, data)
+	//log.Infof("ServeService: service: %s data: %+v", path, data)
 	_, err = nedge.doNedgeRequest("PUT", path, data)
 	return err
 }
@@ -473,7 +445,7 @@ func (nedge *NexentaEdgeProvider) UnserveBucket(service string, cluster string, 
 	data := make(map[string]interface{})
 	data["serve"] = serve
 
-	log.Infof("UnserveService: service: %s data: %+v", path, data)
+	//log.Infof("UnserveService: service: %s data: %+v", path, data)
 	_, err = nedge.doNedgeRequest("DELETE", path, data)
 	return err
 }
@@ -491,7 +463,7 @@ func (nedge *NexentaEdgeProvider) IsBucketExist(cluster string, tenant string, b
 			return true
 		}
 	}
-	log.Debugf("No bucket %s/%s/%s found", cluster, tenant, bucket)
+	//log.Debugf("No bucket %s/%s/%s found", cluster, tenant, bucket)
 	return false
 }
 
@@ -513,7 +485,7 @@ func (nedge *NexentaEdgeProvider) ListBuckets(cluster string, tenant string) (bu
 		buckets = append(buckets, val.(string))
 	}
 
-	log.Debugf("Bucket list for %s/%s : %+v", cluster, tenant, buckets)
+	//log.Debugf("Bucket list for %s/%s : %+v", cluster, tenant, buckets)
 	return buckets, err
 }
 
@@ -536,7 +508,7 @@ func (nedge *NexentaEdgeProvider) ListClusters() (clusters []string, err error) 
 		clusters = append(clusters, val.(string))
 	}
 
-	log.Debugf("Cluster list for NexentaEdge cluster %s", nedge.endpoint)
+	//log.Debugf("Cluster list for NexentaEdge cluster %s", nedge.endpoint)
 	return clusters, err
 }
 
@@ -559,7 +531,7 @@ func (nedge *NexentaEdgeProvider) ListTenants(cluster string) (tenants []string,
 		tenants = append(tenants, val.(string))
 	}
 
-	log.Debugf("Tenant list for cluster %s", cluster)
+	//log.Debugf("Tenant list for cluster %s", cluster)
 	return tenants, err
 }
 
@@ -606,7 +578,7 @@ func (nedge *NexentaEdgeProvider) Request(method, restpath string, data map[stri
 	tr := &http.Transport{}
 	client := &http.Client{Transport: tr}
 	url := nedge.endpoint + restpath
-	log.Debugf("Request to NexentaEdge [%s] %s data: %+v ", method, url, data)
+	//log.Debugf("Request to NexentaEdge [%s] %s data: %+v ", method, url, data)
 	req, err := http.NewRequest(method, url, nil)
 	if len(data) != 0 {
 		req, err = http.NewRequest(method, url, strings.NewReader(string(datajson)))
@@ -661,9 +633,14 @@ func getXServiceObjectsFromString(service string, xObjects string) (nfsVolumes [
 
 			parts := strings.Split(objectParts[1], "@")
 			if len(parts) == 2 {
-				share := "/" + parts[0]
-				volume := NedgeNFSVolume{VolumeID: fmt.Sprintf("%s@%s", service, parts[1]), Share: share, Path: parts[1]}
-				nfsVolumes = append(nfsVolumes, volume)
+				pathParts := strings.Split(parts[1], "/")
+				if len(pathParts) == 3 {
+					share := "/" + parts[0]
+					volume := NedgeNFSVolume{VolumeID: VolumeID{Service: service, Cluster: pathParts[0], Tenant: pathParts[1], Bucket: pathParts[2]},
+						Share: share,
+						Path:  parts[1]}
+					nfsVolumes = append(nfsVolumes, volume)
+				}
 			}
 		}
 	}
@@ -671,7 +648,7 @@ func getXServiceObjectsFromString(service string, xObjects string) (nfsVolumes [
 }
 
 func getVipIPFromString(xvips string) string {
-	log.Infof("X-Vips is: %s\n", xvips)
+	//log.Infof("X-Vips is: %s\n", xvips)
 	xvipBody := []byte(xvips)
 	r := make([]interface{}, 0)
 	jsonerr := json.Unmarshal(xvipBody, &r)
@@ -679,21 +656,21 @@ func getVipIPFromString(xvips string) string {
 		log.Error(jsonerr)
 		return ""
 	}
-	log.Infof("Processed is: %s\n", r)
+	//log.Infof("Processed is: %s\n", r)
 
 	if r == nil {
 		return ""
 	}
 
 	for _, outerArrayItem := range r {
-		innerArray := outerArrayItem.([]interface{})
-		log.Infof("InnerArray is: %s\n", innerArray)
+		//innerArray := outerArrayItem.([]interface{})
+		//log.Infof("InnerArray is: %s\n", innerArray)
 
 		if innerArray, ok := outerArrayItem.([]interface{}); ok {
 			for _, innerArrayItem := range innerArray {
 				if item, ok := innerArrayItem.(map[string]interface{}); ok {
 					if ipValue, ok := item["ip"]; ok {
-						log.Infof("VIP IP Found : %s\n", ipValue)
+						//log.Infof("VIP IP Found : %s\n", ipValue)
 						return ipValue.(string)
 					}
 				}
