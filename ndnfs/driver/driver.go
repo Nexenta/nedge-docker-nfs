@@ -89,6 +89,7 @@ func DriverAlloc(cfgFile string) (driver NdnfsDriver) {
 	return driver
 }
 
+
 func (d NdnfsDriver) PrepareConfigMap() map[string]string {
 	configMap := make(map[string]string)
 
@@ -190,6 +191,7 @@ func (d NdnfsDriver) Create(r *volume.CreateRequest) (err error) {
 	log.Info("Creating bucket")
 	if !d.Nedge.IsBucketExist(volID.Cluster, volID.Tenant, volID.Bucket) {
 		log.Info("Bucket doesnt exist")
+
 		err := d.Nedge.CreateBucket(volID.Cluster, volID.Tenant, volID.Bucket, 0, r.Options)
 		if err != nil {
 			log.Error(err)
