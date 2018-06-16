@@ -197,14 +197,14 @@ func (nedge *NexentaEdgeProvider) CreateBucket(clusterName string, tenantName st
 }
 
 func (nedge *NexentaEdgeProvider) DeleteBucket(cluster string, tenant string, bucket string, force bool) (err error) {
-	path := fmt.Sprintf("clusters/%s/tenants/%s/buckets/%s", cluster, tenant, bucket)
 
 	if force == true {
-		path += "?expunge=1"
+		path := fmt.Sprintf("clusters/%s/tenants/%s/buckets/%s?expunge=1&async=1", cluster, tenant, bucket)
+
+		log.Infof("DeleteBucket: path: %s ", path)
+		_, err = nedge.doNedgeRequest("DELETE", path, nil)
 	}
 
-	log.Infof("DeleteBucket: path: %s ", path)
-	_, err = nedge.doNedgeRequest("DELETE", path, nil)
 	return err
 }
 
