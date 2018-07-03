@@ -343,7 +343,7 @@ func (d NdnfsDriver) ListVolumes() (vmap map[string]string, err error) {
 		return vmap, err
 	}
 
-	clusterData.FillNfsVolumes(vmap, d.Config.Cluster)
+	clusterData.FillNfsVolumes(vmap, d.Config.Cluster, d.Config.Tenant)
 
 	log.Debug(vmap)
 	return vmap, err
