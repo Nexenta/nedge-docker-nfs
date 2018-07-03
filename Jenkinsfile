@@ -1,7 +1,7 @@
 node('master') {
     docker.withServer('unix:///var/run/docker.sock') {
         stage('Git clone') {
-            git url: 'https://github.com/Nexenta/nedge-docker-nfs-builders.git', branch: 'stable/v17'
+            git url: 'https://github.com/Nexenta/nedge-docker-nfs-builders.git', branch: 'stable/v17-dev'
             sh """
                 echo "Build number: ${BUILD_NUMBER}";
             """
@@ -21,7 +21,6 @@ node('master') {
                             docker --version; \
                             git --version; \
                             make --version; \
-			    docker login -u ${DOCKER_USER} -p ${DOCKER_PASS}; \
                             make push;
                         """
                     }
