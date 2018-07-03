@@ -35,6 +35,7 @@ type Config struct {
 	Nedgerest           string
 	Nedgeport           int16
 	Cluster             string
+	Tenant              string
 	Chunksize           int
 	Username            string
 	Password            string
@@ -96,6 +97,9 @@ func (d NdnfsDriver) PrepareConfigMap() map[string]string {
 		configMap["cluster"] = d.Config.Cluster
 	}
 
+	if d.Config.Tenant != "" {
+		configMap["tenant"] = d.Config.Tenant
+	}
 	return configMap
 }
 
