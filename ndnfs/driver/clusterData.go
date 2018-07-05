@@ -71,17 +71,18 @@ func (clusterData ClusterData) FindServiceDataByVolumeID(volumeID nedgeprovider.
 }
 
 /*FillNfsVolumes Fills outer volumes hashmap, format {VolumeID: volume nfs endpoint} */
-func (clusterData ClusterData) FillNfsVolumes(vmap map[string]string, defaultCluster string) {
+func (clusterData ClusterData) FillNfsVolumes(vmap map[string]string, defaultCluster string, defaultTenant string) {
 
 	for _, data := range clusterData.nfsServicesData {
 		for _, nfsVolume := range data.NfsVolumes {
 
-			var volumePath string
+			volumePath := nfsVolume.VolumeID.FullObjectPath()
 			if defaultCluster != "" && nfsVolume.VolumeID.Cluster == defaultCluster {
-				volumePath = nfsVolume.VolumeID.MinimalObjectPath()
-			} else {
-				volumePath = nfsVolume.VolumeID.FullObjectPath()
+				if defaultTenant != "" && nfsVolume.VolumeID.Tenant == defaultTenant {
+					volumePath = nfsVolume.VolumeID.MinimalObjectPath()
+				}
 			}
+
 			vname := volumePath
 			vmap[vname] = fmt.Sprintf("%s:%s", data.Service.Network[0], nfsVolume.Share)
 		}

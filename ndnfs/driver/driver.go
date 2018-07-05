@@ -35,6 +35,7 @@ type Config struct {
 	Nedgerest           string
 	Nedgeport           int16
 	Cluster             string
+	Tenant              string
 	Chunksize           int
 	Username            string
 	Password            string
@@ -89,7 +90,6 @@ func DriverAlloc(cfgFile string) (driver NdnfsDriver) {
 	return driver
 }
 
-
 func (d NdnfsDriver) PrepareConfigMap() map[string]string {
 	configMap := make(map[string]string)
 
@@ -97,6 +97,9 @@ func (d NdnfsDriver) PrepareConfigMap() map[string]string {
 		configMap["cluster"] = d.Config.Cluster
 	}
 
+	if d.Config.Tenant != "" {
+		configMap["tenant"] = d.Config.Tenant
+	}
 	return configMap
 }
 
@@ -191,7 +194,6 @@ func (d NdnfsDriver) Create(r *volume.CreateRequest) (err error) {
 	log.Info("Creating bucket")
 	if !d.Nedge.IsBucketExist(volID.Cluster, volID.Tenant, volID.Bucket) {
 		log.Info("Bucket doesnt exist")
-
 		err := d.Nedge.CreateBucket(volID.Cluster, volID.Tenant, volID.Bucket, 0, r.Options)
 		if err != nil {
 			log.Error(err)
@@ -341,7 +343,7 @@ func (d NdnfsDriver) ListVolumes() (vmap map[string]string, err error) {
 		return vmap, err
 	}
 
-	clusterData.FillNfsVolumes(vmap, d.Config.Cluster)
+	clusterData.FillNfsVolumes(vmap, d.Config.Cluster, d.Config.Tenant)
 
 	log.Debug(vmap)
 	return vmap, err
