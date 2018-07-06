@@ -141,7 +141,7 @@ func (path *VolumeID) FullObjectPath() string {
 
 // for driver list
 func (path *VolumeID) MinimalObjectPath() string {
-	return fmt.Sprintf("%s/%s", path.Tenant, path.Bucket)
+	return fmt.Sprintf("%s", path.Bucket)
 }
 
 func (path *VolumeID) MountPointObjectPath() string {
