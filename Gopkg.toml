@@ -1,0 +1,15 @@
+[[constraint]]
+  name = "github.com/docker/go-plugins-helpers"
+  revision = "1e6269c305b8c75cfda1c8aa91349c38d7335814" # ver. 2018-10-25 (master)
+
+[[constraint]]
+  name = "github.com/sirupsen/logrus"
+  version = "^1.0.0"
+
+[[override]]
+  name = "github.com/docker/go-connections"
+  version = "v0.4.0"
+
+[prune]
+  go-tests = true
+  unused-packages = true
