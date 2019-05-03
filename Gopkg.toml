@@ -1,0 +1,19 @@
+[[constraint]]
+  name = "github.com/docker/go-plugins-helpers"
+  revision = "d7fc7d0aa1603cc47bb43e10a03ab50f4443c1b8" 
+
+[[constraint]]
+  name = "github.com/opencontainers/runc"
+  revision = "aada2af1b2ffb3538d967878ad55f9365c77a0a8"
+
+[[constraint]]
+  name = "github.com/sirupsen/logrus"
+  version = "^1.0.0"
+
+[[override]]
+  name = "github.com/docker/go-connections"
+  revision = "acbe915fb57c37e7d1c0294b52bc8ef2a21c4731"
+
+[prune]
+  go-tests = true
+  unused-packages = true

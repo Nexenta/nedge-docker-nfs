@@ -2,20 +2,24 @@ NEDGE_DEST = $(DESTDIR)/opt/nedge/sbin
 NEDGE_ETC = $(DESTDIR)/opt/nedge/etc/ccow
 NDNFS_EXE = ndnfs
 
+GIT_REPOSITORY = github.com/Nexenta/${PLUGIN_NAME}
+
+GIT_BRANCH = $(shell git rev-parse --abbrev-ref HEAD | sed -e "s/.*\\///")
+VERSION ?= ${GIT_BRANCH}
+COMMIT ?= $(shell git rev-parse HEAD | cut -c 1-7)
+DATETIME ?= $(shell date -u +'%F_%T')
+LDFLAGS ?= \
+	-X ${GIT_REPOSITORY}/pkg/config.Version=${VERSION} \
+	-X ${GIT_REPOSITORY}/pkg/config.Commit=${COMMIT} \
+	-X ${GIT_REPOSITORY}/pkg/config.DateTime=${DATETIME}
+
 ifeq ($(GOPATH),)
 GOPATH = $(shell pwd)
 endif
 
 build:
-	GOPATH=$(GOPATH) go get -d -v github.com/opencontainers/runc
-	cd $(GOPATH)/src/github.com/opencontainers/runc; git checkout aada2af
-	GOPATH=$(GOPATH) go get -v github.com/docker/go-plugins-helpers/volume
-	cd $(GOPATH)/src/github.com/docker/go-plugins-helpers/volume; git checkout d7fc7d0
-	cd $(GOPATH)/src/github.com/docker/go-connections; git checkout acbe915
-	GOPATH=$(GOPATH) go get -d github.com/Nexenta/nedge-docker-nfs/...
-	cd $(GOPATH)/src/github.com/Nexenta/nedge-docker-nfs; git checkout stable/v13
-	GOPATH=$(GOPATH) go get github.com/Nexenta/nedge-docker-nfs/...
 
+	env CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o bin/${NDNFS_EXE} -ldflags "${LDFLAGS}" ./ndnfs/ndnfs.go
 lint:
 	go get -v github.com/golang/lint/golint
 	for file in $$(find $(GOPATH)/src/github.com/Nexenta/nedge-docker-nfs -name '*.go' | grep -v vendor | grep -v '\.pb\.go' | grep -v '\.pb\.gw\.go'); do \
