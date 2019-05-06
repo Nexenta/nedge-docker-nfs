@@ -18,8 +18,20 @@ GOPATH = $(shell pwd)
 endif
 
 build:
+	# docker/go-plugins-helpers
+	GOPATH=$(GOPATH) go get -d -v github.com/docker/go-plugins-helpers/volume
+	cd $(GOPATH)/src/github.com/docker/go-plugins-helpers; git checkout d7fc7d0
+	# opencontainers/runc
+	GOPATH=$(GOPATH) go get -d -v github.com/opencontainers/runc
+	cd $(GOPATH)/src/github.com/opencontainers/runc; git checkout aada2af
+	# docker/go-connections
+	GOPATH=$(GOPATH) go get -d -v github.com/docker/go-connections
+	cd $(GOPATH)/src/github.com/docker/go-connections; git checkout acbe915
+	# NDNFS
+	GOPATH=$(GOPATH) go get -d github.com/Nexenta/nedge-docker-nfs/...
+	cd $(GOPATH)/src/github.com/Nexenta/nedge-docker-nfs; git checkout stable/v13
+	GOPATH=$(GOPATH) go get github.com/Nexenta/nedge-docker-nfs/...
 
-	env CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o bin/${NDNFS_EXE} -ldflags "${LDFLAGS}" ./ndnfs/ndnfs.go
 lint:
 	go get -v github.com/golang/lint/golint
 	for file in $$(find $(GOPATH)/src/github.com/Nexenta/nedge-docker-nfs -name '*.go' | grep -v vendor | grep -v '\.pb\.go' | grep -v '\.pb\.gw\.go'); do \
